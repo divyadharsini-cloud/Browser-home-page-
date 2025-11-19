@@ -1,6 +1,6 @@
 ---
 - name: Deploy automatic cache cleanup on boot
-  hosts: Melur
+  hosts: 10.17.12.38
   become: true
   gather_facts: false
 
