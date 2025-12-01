@@ -43,7 +43,7 @@
           # Auto-clear browser caches for all non-system users
           for user in $(ls /home); do
             if [[ "{{ skip_users }}" != *"$user"* ]]; then
-              rm -rf /home/$user/.mozilla/firefox/*.default-release/cache2/*
+              rm -rf /home/$user/.cache/mozilla/firefox/*.default-release/cache2/*
             fi
           done
           echo "$(date): Cache cleared" >> "{{ log_file_path }}"
