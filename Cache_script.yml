@@ -1,6 +1,6 @@
 ---
 - name: Deploy automatic cache cleanup on boot
-  hosts: 10.17.11.70
+  hosts: 10.17.12.21
   become: true
   gather_facts: false
 
