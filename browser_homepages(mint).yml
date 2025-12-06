@@ -1,6 +1,6 @@
 ---
 - name: Disable and lock Firefox password manager on manually installed Firefox
-  hosts: Glaucoma-op
+  hosts: 10.17.10.36
   become: yes
   tasks:
 
