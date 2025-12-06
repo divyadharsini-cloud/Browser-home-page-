@@ -1,6 +1,6 @@
 ---
 - name: Deploy automatic cache cleanup on boot
-  hosts: linux_servers
+  hosts: 10.17.10.36
   become: true
   gather_facts: false
 
