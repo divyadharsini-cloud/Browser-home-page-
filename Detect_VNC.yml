@@ -1,0 +1,41 @@
+---
+- name: Detect VNC on Ubuntu
+  hosts: linux_servers
+  become: yes
+  tasks:
+
+    - name: Check if VNC packages are installed
+      shell: dpkg -l | grep -E "vnc|tigervnc|realvnc|tightvnc"
+      register: vnc_packages
+      ignore_errors: yes
+
+    - name: Print installed VNC packages
+      debug:
+        var: vnc_packages.stdout_lines
+
+    - name: Check running VNC processes
+      shell: pgrep -fl "vnc"
+      register: vnc_process
+      ignore_errors: yes
+
+    - name: Show running VNC processes
+      debug:
+        var: vnc_process.stdout_lines
+
+    - name: Check VNC systemd services
+      shell: systemctl list-units --type=service | grep -i vnc
+      register: vnc_services
+      ignore_errors: yes
+
+    - name: Show VNC services
+      debug:
+        var: vnc_services.stdout_lines
+
+    - name: Check if VNC port is listening (5900–5910)
+      shell: ss -tlnp | grep -E "590[0-9]"
+      register: vnc_ports
+      ignore_errors: yes
+
+    - name: Show VNC listening ports
+      debug:
+        var: vnc_ports.stdout_lines
