@@ -1,6 +1,6 @@
 ---
 - name: Deploy automatic cache cleanup on boot
-  hosts: 10.17.10.18
+  hosts: Glaucoma-op
   become: true
   gather_facts: false
 
