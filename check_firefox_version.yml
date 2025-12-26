@@ -1,0 +1,22 @@
+---
+- name: Check Firefox version on all systems
+  hosts: Glaucom-op
+  become: yes
+  gather_facts: no
+
+  tasks:
+    - name: Check if Firefox is installed
+      command: firefox --version
+      register: firefox_version
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Show Firefox version if installed
+      debug:
+        msg: "Firefox version on {{ inventory_hostname }}: {{ firefox_version.stdout }}"
+      when: firefox_version.rc == 0
+
+    - name: Show message if Firefox is not installed
+      debug:
+        msg: "Firefox is NOT installed on {{ inventory_hostname }}"
+      when: firefox_version.rc != 0
