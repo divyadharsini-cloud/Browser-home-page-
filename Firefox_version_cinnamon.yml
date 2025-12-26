@@ -1,6 +1,6 @@
 ---
 - name: Enforce Firefox 117 permanently on Kali Linux and auto-revert on change
-  hosts: Gluacoma-op
+  hosts: Glaucoma-op
   become: yes
   vars:
     firefox_version: "117.0"
