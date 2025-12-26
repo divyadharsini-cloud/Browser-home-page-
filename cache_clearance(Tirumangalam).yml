@@ -1,7 +1,7 @@
 
 ---
 - name: Clear Firefox cache2 directories on Linux for all users
-  hosts: Tirumangalam
+  hosts: Glaucoma-op
   become: true
   gather_facts: false
 
