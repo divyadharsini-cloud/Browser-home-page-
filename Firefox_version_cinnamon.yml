@@ -1,6 +1,6 @@
 ---
 - name: Enforce Firefox 117 permanently on Kali Linux and auto-revert on change
-  hosts: FH-1G(reach)
+  hosts: 172.17.16.149
   become: yes
   vars:
     firefox_version: "117.0"
