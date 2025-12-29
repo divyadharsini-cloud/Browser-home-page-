@@ -1,52 +1,46 @@
 ---
-- name: Detect whether client machine is using DHCP
+- name: Collect simplified DHCP info
   hosts: linux_servers
   become: yes
   gather_facts: no
 
+  vars:
+    # Filter log lines to include only 'new lease' lines
+    dhcp_filter: "state changed new lease"
+
   tasks:
 
-    - name: Detect active network interface
-      shell: ip route | awk '/default/ {print $5}'
-      register: iface
+    - name: Get NetworkManager DHCP logs (last 1 day)
+      shell: journalctl -u NetworkManager --since "1 day ago" | grep -i "{{ dhcp_filter }}"
+      register: dhcp_logs
+      changed_when: false
+      failed_when: false
+
+    - name: Parse IP addresses from DHCP logs
+      set_fact:
+        dhcp_ip_list: "{{ dhcp_logs.stdout_lines | map('regex_search','address=([0-9.]+)') | select('string') | list }}"
+
+    - name: Remove duplicates
+      set_fact:
+        dhcp_ip_list_unique: "{{ dhcp_ip_list | unique }}"
+
+    - name: Get device IP addresses via nmcli
+      shell: nmcli -g DEVICE,IP4.ADDRESS device show | grep -v '^$'
+      register: nmcli_output
       changed_when: false
 
-    - name: Detect dynamic IP flag from kernel
-      shell: ip addr show {{ iface.stdout }} | grep -qw dynamic
-      register: ip_dynamic
-      ignore_errors: yes
-      changed_when: false
+    - name: Parse nmcli IP addresses
+      set_fact:
+        nmcli_ip_list: "{{ nmcli_output.stdout_lines | map('regex_search','([0-9.]+)') | select('string') | list }}"
 
-    - name: Detect DHCP lease directory (dhclient)
-      stat:
-        path: /var/lib/dhcp
-      register: dhclient_dir
-
-    - name: Detect DHCP info via nmcli (safe field only)
-      shell: nmcli -g DHCP4.OPTION device show {{ iface.stdout }} | wc -l
-      register: nm_dhcp_options
-      ignore_errors: yes
-      changed_when: false
-
-    - name: Final DHCP Detection Result
+    - name: Show simplified DHCP IPs from logs
       debug:
-        msg: |
-          CLIENT DHCP DETECTION RESULT
-          ----------------------------
-          Interface        : {{ iface.stdout }}
+        msg:
+          - "DHCP leases found in logs:"
+          - "{{ dhcp_ip_list_unique }}"
 
-          Kernel IP state:
-            Dynamic IP flag: {{ ip_dynamic.rc == 0 }}
-
-          DHCP Client Files:
-            dhclient dir   : {{ dhclient_dir.stat.exists }}
-
-          NetworkManager:
-            DHCP options   : {{ nm_dhcp_options.stdout | default('0') }}
-
-          FINAL VERDICT:
-          {% if ip_dynamic.rc == 0 or (nm_dhcp_options.stdout | int > 0) %}
-          ✅ THIS CLIENT IS UNDER DHCP (Dynamic IP)
-          {% else %}
-          ❌ THIS CLIENT IS USING STATIC IP
-          {% endif %}
+    - name: Show current device IPs
+      debug:
+        msg:
+          - "Current IPs from nmcli:"
+          - "{{ nmcli_ip_list }}"
