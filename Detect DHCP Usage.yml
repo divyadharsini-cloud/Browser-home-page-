@@ -1,0 +1,59 @@
+---
+- name: Detect whether client machine is using DHCP
+  hosts: linux_servers
+  become: yes
+  gather_facts: no
+
+  tasks:
+
+    - name: Detect active network interface
+      shell: ip route | awk '/default/ {print $5}'
+      register: iface
+      changed_when: false
+
+    - name: Get IPv4 method from NetworkManager (if present)
+      shell: nmcli -g ipv4.method device show {{ iface.stdout }}
+      register: nm_ipv4_method
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Get DHCP server from NetworkManager (if present)
+      shell: nmcli -g IP4.DHCP.SERVER device show {{ iface.stdout }}
+      register: nm_dhcp_server
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Check dhclient lease file existence
+      stat:
+        path: /var/lib/dhcp
+      register: dhclient_dir
+
+    - name: Detect dynamic IP flag from ip addr
+      shell: ip addr show {{ iface.stdout }} | grep -q dynamic
+      register: ip_dynamic
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Final DHCP Detection Result
+      debug:
+        msg: |
+          CLIENT DHCP DETECTION RESULT
+          ----------------------------
+          Interface        : {{ iface.stdout }}
+
+          NetworkManager:
+            IPv4 method    : {{ nm_ipv4_method.stdout | default('N/A') }}
+            DHCP Server IP : {{ nm_dhcp_server.stdout | default('N/A') }}
+
+          Kernel IP state:
+            Dynamic IP flag: {{ ip_dynamic.rc == 0 }}
+
+          DHCP Client Files:
+            dhclient dir   : {{ dhclient_dir.stat.exists }}
+
+          FINAL VERDICT:
+          {% if nm_ipv4_method.stdout == "auto" or ip_dynamic.rc == 0 %}
+          ✅ THIS CLIENT IS UNDER DHCP (Dynamic IP)
+          {% else %}
+          ❌ THIS CLIENT IS USING STATIC IP
+          {% endif %}
