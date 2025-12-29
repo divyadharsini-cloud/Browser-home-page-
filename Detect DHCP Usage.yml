@@ -5,7 +5,6 @@
   gather_facts: no
 
   vars:
-    # Filter log lines to include only 'new lease' lines
     dhcp_filter: "state changed new lease"
 
   tasks:
@@ -24,14 +23,15 @@
       set_fact:
         dhcp_ip_list_unique: "{{ dhcp_ip_list | unique }}"
 
-    - name: Get device IP addresses via nmcli
-      shell: nmcli -g DEVICE,IP4.ADDRESS device show | grep -v '^$'
-      register: nmcli_output
+    - name: Get IP addresses from nmcli (modern way)
+      shell: nmcli device show | grep 'IP4.ADDRESS' | awk '{print $2}' || true
+      register: nmcli_ip_output
       changed_when: false
+      failed_when: false
 
-    - name: Parse nmcli IP addresses
+    - name: Parse current IPs
       set_fact:
-        nmcli_ip_list: "{{ nmcli_output.stdout_lines | map('regex_search','([0-9.]+)') | select('string') | list }}"
+        nmcli_ip_list: "{{ nmcli_ip_output.stdout_lines }}"
 
     - name: Show simplified DHCP IPs from logs
       debug:
