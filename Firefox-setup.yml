@@ -1,6 +1,6 @@
 ---
 - name: Enforce Firefox 117 on Kali Linux (install only if missing)
-  hosts: 172.17.16.151
+  hosts: CH(MDU)
   become: yes
 
   vars:
