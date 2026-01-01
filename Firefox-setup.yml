@@ -9,7 +9,7 @@
     offline_installer_url: "http://172.17.9.58/firefox/releases/117.0/linux-x86_64/en-US/firefox-117.0.tar.bz2"
     installer_archive: "{{ temp_dir }}/firefox-117.0.tar.bz2"
     install_dir: "/opt/firefox117"
-    firefox_binary: "{{ install_dir }}/firefox/firefox"
+    firefox_binary: "{{ install_dir }}/firefox"
     check_script_path: "/usr/local/bin/check_firefox_version.sh"
     cron_job_path: "/etc/cron.d/firefox_enforcer"
 
@@ -20,8 +20,8 @@
     # -------------------------------------------------
     - name: Check if Firefox 117 already exists
       ansible.builtin.stat:
-        path: "{{ firefox_binary }}"
-      register: firefox117_present
+        path: "{{ install_dir }}"
+      register: firefox117_dir
 
     # -------------------------------------------------
     # Install Firefox 117 ONLY if missing
@@ -31,7 +31,7 @@
         path: "{{ temp_dir }}"
         state: directory
         mode: '0755'
-      when: not firefox117_present.stat.exists
+      when: not firefox117_dir.stat.exists
 
     - name: Download Firefox 117 from OFFLINE mirror
       ansible.builtin.get_url:
