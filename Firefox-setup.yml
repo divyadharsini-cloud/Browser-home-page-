@@ -38,27 +38,27 @@
         url: "{{ offline_installer_url }}"
         dest: "{{ installer_archive }}"
         mode: '0644'
-      when: not firefox117_present.stat.exists
+      when: not firefox117_dir.stat.exists
 
     - name: Create Firefox install directory
       ansible.builtin.file:
         path: "{{ install_dir }}"
         state: directory
         mode: '0755'
-      when: not firefox117_present.stat.exists
+      when: not firefox117_dir.stat.exists
 
     - name: Extract Firefox 117
       ansible.builtin.unarchive:
         src: "{{ installer_archive }}"
         dest: "{{ install_dir }}"
         remote_src: yes
-      when: not firefox117_present.stat.exists
+      when: not firefox117_dir.stat.exists
 
     - name: Remove downloaded archive
       ansible.builtin.file:
         path: "{{ installer_archive }}"
         state: absent
-      when: not firefox117_present.stat.exists
+      when: not firefox117_dir.stat.exists
 
     # -------------------------------------------------
     # Prevent APT upgrades of Firefox ESR
