@@ -1,6 +1,6 @@
 ---
 - name: Deploy automatic cache cleanup on boot
-  hosts: FH-1G(reach)
+  hosts: CH(MDU)
   become: true
   gather_facts: false
 
