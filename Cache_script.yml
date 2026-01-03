@@ -1,6 +1,6 @@
 ---
 - name: Deploy automatic cache cleanup on boot
-  hosts: FH-2
+  hosts: 172.17.28.219, 172.17.32.140, 172.17.32.92, 172.17.32.102, 172.17.5.79, 172.17.16.128
   become: true
   gather_facts: false
 
