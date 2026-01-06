@@ -1,6 +1,6 @@
 ---
 - name: Configure client to report IP to AWX at boot
-  hosts: linux_servers
+  hosts: 10.17.10.30
   become: yes
 
   vars:
