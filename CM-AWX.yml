@@ -1,0 +1,74 @@
+---
+- name: Configure client to report IP to AWX at boot
+  hosts: linux_servers
+  become: yes
+
+  vars:
+    awx_server: "https://awx.aravind.org"
+    awx_user: "divya"
+    awx_pass: "Divya@123"
+
+  tasks:
+
+    - name: Create IP reporting script
+      copy:
+        dest: /usr/local/bin/report_ip_to_awx.sh
+        owner: root
+        group: root
+        mode: '0755'
+        content: |
+          #!/bin/bash
+
+          AWX_SERVER="{{ awx_server }}"
+          AWX_USER="{{ awx_user }}"
+          AWX_PASS="{{ awx_pass }}"
+
+          HOSTNAME=$(hostname)
+          IP=$(ip route get 1 | awk '{print $7; exit}')
+
+          HOST_ID=$(curl -sk -u "$AWX_USER:$AWX_PASS" \
+            "$AWX_SERVER/api/v2/hosts/?name=$HOSTNAME" \
+            | grep -o '"id":[0-9]*' | head -1 | cut -d: -f2)
+
+          if [ -z "$HOST_ID" ]; then
+            echo "ERROR: Host $HOSTNAME not found in AWX"
+            exit 1
+          fi
+
+          curl -sk -u "$AWX_USER:$AWX_PASS" -X PATCH \
+            "$AWX_SERVER/api/v2/hosts/$HOST_ID/" \
+            -H "Content-Type: application/json" \
+            -d "{\"variables\": \"ansible_host: $IP\"}"
+
+    - name: Create systemd service file
+      copy:
+        dest: /etc/systemd/system/report-ip-awx.service
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Report IP to AWX at boot
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/local/bin/report_ip_to_awx.sh
+          User=root
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Reload systemd daemon
+      command: systemctl daemon-reexec
+
+    - name: Enable report-ip-awx service
+      systemd:
+        name: report-ip-awx.service
+        enabled: yes
+
+    - name: Start report-ip-awx service
+      systemd:
+        name: report-ip-awx.service
+        state: started
