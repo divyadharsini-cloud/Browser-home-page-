@@ -1,6 +1,6 @@
 ---
 - name: Configure client to report IP to AWX at boot
-  hosts: Melur
+  hosts: Tirumangalam
   become: yes
 
   vars:
