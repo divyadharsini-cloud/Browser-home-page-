@@ -1,6 +1,6 @@
 ---
 - name: Configure client to report IP to AWX at boot
-  hosts: Tirumangalam
+  hosts: Glaucoma-op
   become: yes
 
   vars:
