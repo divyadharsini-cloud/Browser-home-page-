@@ -1,6 +1,6 @@
 ---
 - name: Configure client to report IP to AWX at boot
-  hosts: TMDUPH4FSTBY035
+  hosts: GF-1
   become: yes
 
   vars:
