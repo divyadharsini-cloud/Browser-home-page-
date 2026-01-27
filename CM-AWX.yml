@@ -1,6 +1,6 @@
 ---
 - name: Configure client to report IP to AWX at boot
-  hosts: Test-Batch1
+  hosts: DPDYPHGFU010016
 
   become: yes
 
