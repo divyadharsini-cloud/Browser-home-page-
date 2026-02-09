@@ -1,6 +1,6 @@
 ---
 - name: Deploy automatic cache cleanup on boot
-  hosts: TMDUPH3FGLA3003
+  hosts: DMDUFHGFDOC0017, TMDUFH1FEOT0052, TMDUFHGFREV0046, TMDUFHGFREV0044, TMDUFH2FPHYDOC58
   become: true
   gather_facts: false
 
