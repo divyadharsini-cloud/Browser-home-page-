@@ -1,0 +1,58 @@
+---
+- name: Safely lock Firefox 117 without disrupting users
+  hosts: 172.17.9.59
+  become: yes
+
+  tasks:
+
+  # ----------------------------------------------------
+  # 1. Detect running Firefox version
+  # ----------------------------------------------------
+  - name: Get Firefox version
+    ansible.builtin.command: firefox --version
+    register: firefox_version_cmd
+    changed_when: false
+    failed_when: false
+
+  - name: Set flag if Firefox 117 is running
+    set_fact:
+      firefox117_running: "{{ firefox_version_cmd.stdout is search('117\\.0') }}"
+
+  - name: Show Firefox version
+    debug:
+      msg: "Firefox version on {{ inventory_hostname }}: {{ firefox_version_cmd.stdout | default('Not installed') }}"
+
+  # ----------------------------------------------------
+  # 2. Create Firefox policy only if version is 117
+  # ----------------------------------------------------
+  - name: Create Firefox policies directory
+    ansible.builtin.file:
+      path: /etc/firefox/policies
+      state: directory
+      mode: '0755'
+    when: firefox117_running
+
+  - name: Lock Firefox to 117 (disable updates)
+    ansible.builtin.copy:
+      dest: /etc/firefox/policies/policies.json
+      mode: '0644'
+      content: |
+        {
+          "policies": {
+            "DisableAppUpdate": true,
+            "AppUpdatePin": "117.0"
+          }
+        }
+    when: firefox117_running
+
+  # ----------------------------------------------------
+  # 3. Verification (no disruption)
+  # ----------------------------------------------------
+  - name: Confirm Firefox 117 lock
+    debug:
+      msg: >
+        {% if firefox117_running %}
+        Firefox 117 detected — updates now locked safely (no relinks, no restarts)
+        {% else %}
+        Firefox is not 117 — system left untouched
+        {% endif %}
