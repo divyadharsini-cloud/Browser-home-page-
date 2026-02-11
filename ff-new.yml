@@ -1,6 +1,6 @@
 ---
 - name: Safely lock Firefox 117 without disrupting users
-  hosts: 172.17.9.59
+  hosts: ansibletesting
   become: yes
 
   tasks:
