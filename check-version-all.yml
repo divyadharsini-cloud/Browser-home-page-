@@ -1,49 +1,65 @@
-- name: Audit Firefox policy directories
-  hosts: Unit-2&3
+---
+- name: Deploy Firefox enterprise policies safely
+  hosts: ansibletesting
   become: yes
   gather_facts: no
 
   tasks:
 
-    - name: Check Firefox
-      command: firefox --version
-      register: firefox_version
-      ignore_errors: yes
-      changed_when: false
-
-    - name: Skip if Firefox not installed
-      meta: end_host
-      when: firefox_version.rc != 0
-
-    - name: Get real Firefox binary
+    - name: Get Firefox launcher
       shell: readlink -f "$(which firefox)"
-      register: firefox_real
+      register: firefox_launcher
       changed_when: false
 
-    - name: Set Firefox policy root
+    - name: Check if corporate launcher is used
       set_fact:
-        firefox_policy_root: >-
-          {% if firefox_real.stdout == '/usr/bin/firefox' %}
-          /usr/lib/firefox
-          {% else %}
-          {{ firefox_real.stdout | regex_replace('/firefox$', '') }}
-          {% endif %}
+        is_wrapper: "{{ firefox_launcher.stdout == '/etc/firefox/firefox' }}"
 
-    - name: Check distribution folder
-      stat:
-        path: "{{ firefox_policy_root }}/distribution"
-      register: dist_dir
+    - name: Resolve real Firefox binary from corporate launcher
+      shell: strings /etc/firefox/firefox | grep -Eo '/(opt|usr/lib)/firefox/firefox' | head -1
+      register: wrapped_firefox
+      when: is_wrapper
+      changed_when: false
 
-    - name: Check policies.json
-      stat:
-        path: "{{ firefox_policy_root }}/distribution/policies.json"
-      register: policy_file
+    - name: Set real Firefox binary path
+      set_fact:
+        real_firefox: "{{ wrapped_firefox.stdout if is_wrapper else firefox_launcher.stdout }}"
 
-    - name: Show audit result
+    - name: Derive Firefox installation directory
+      set_fact:
+        firefox_home: "{{ real_firefox | regex_replace('/firefox$', '') }}"
+
+    - name: Show detected Firefox paths
       debug:
-        msg: |
-          ===== {{ inventory_hostname }} =====
-          Firefox binary: {{ firefox_real.stdout }}
-          Policy root: {{ firefox_policy_root }}
-          distribution exists: {{ dist_dir.stat.exists }}
-          policies.json exists: {{ policy_file.stat.exists }}
+        msg:
+          - "Firefox launcher: {{ firefox_launcher.stdout }}"
+          - "Real Firefox binary: {{ real_firefox }}"
+          - "Firefox home: {{ firefox_home }}"
+
+    - name: Ensure distribution directory exists
+      file:
+        path: "{{ firefox_home }}/distribution"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Deploy Firefox locked enterprise policies
+      copy:
+        dest: "{{ firefox_home }}/distribution/policies.json"
+        mode: '0644'
+        content: |
+          {
+            "policies": {
+              "DisableAppUpdate": true,
+              "DisablePasswordManager": true,
+              "DisableFirefoxAccounts": true,
+              "BlockAboutAddons": true,
+              "Preferences": {
+                "signon.rememberSignons": {
+                  "Value": false,
+                  "Status": "locked"
+                }
+              }
+            }
+          }
