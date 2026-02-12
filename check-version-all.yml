@@ -1,0 +1,65 @@
+- name: Audit Firefox version and policy compliance
+  hosts: Test-Batch1
+  become: yes
+  gather_facts: no
+
+  tasks:
+
+    - name: Check if Firefox is installed
+      command: firefox --version
+      register: firefox_version
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Show Firefox version
+      debug:
+        msg: "Firefox version on {{ inventory_hostname }}: {{ firefox_version.stdout }}"
+      when: firefox_version.rc == 0
+
+    - name: Get real Firefox binary path
+      command: readlink -f $(which firefox)
+      register: firefox_real
+      when: firefox_version.rc == 0
+      changed_when: false
+
+    - name: Show real Firefox path
+      debug:
+        msg: "Firefox binary on {{ inventory_hostname }}: {{ firefox_real.stdout }}"
+      when: firefox_version.rc == 0
+
+    - name: Set Firefox policy root
+      set_fact:
+        firefox_policy_root: "{{ firefox_real.stdout | regex_replace('/firefox$', '') }}"
+      when: firefox_version.rc == 0
+
+    - name: Show policy root
+      debug:
+        msg: "Firefox policy root on {{ inventory_hostname }}: {{ firefox_policy_root }}"
+      when: firefox_version.rc == 0
+
+    - name: Check if policies.json exists
+      stat:
+        path: "{{ firefox_policy_root }}/distribution/policies.json"
+      register: policy_file
+      when: firefox_version.rc == 0
+
+    - name: Show if policy file exists
+      debug:
+        msg: "policies.json exists: {{ policy_file.stat.exists }}"
+      when: firefox_version.rc == 0
+
+    - name: Read policies.json if present
+      command: cat {{ firefox_policy_root }}/distribution/policies.json
+      register: policy_content
+      when: policy_file.stat.exists
+      changed_when: false
+
+    - name: Show policies.json content
+      debug:
+        msg: |
+          ===== {{ inventory_hostname }} =====
+          Firefox: {{ firefox_version.stdout }}
+          Binary: {{ firefox_real.stdout }}
+          Policy file: {{ firefox_policy_root }}/distribution/policies.json
+          {{ policy_content.stdout | default("NO POLICY FILE FOUND") }}
+      when: firefox_version.rc == 0
