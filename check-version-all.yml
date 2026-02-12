@@ -17,7 +17,7 @@
       when: firefox_version.rc == 0
 
     - name: Get real Firefox binary path
-      command: readlink -f $(which firefox)
+      shell: readlink -f "$(which firefox)"
       register: firefox_real
       when: firefox_version.rc == 0
       changed_when: false
@@ -32,29 +32,19 @@
         firefox_policy_root: "{{ firefox_real.stdout | regex_replace('/firefox$', '') }}"
       when: firefox_version.rc == 0
 
-    - name: Show policy root
-      debug:
-        msg: "Firefox policy root on {{ inventory_hostname }}: {{ firefox_policy_root }}"
-      when: firefox_version.rc == 0
-
     - name: Check if policies.json exists
       stat:
         path: "{{ firefox_policy_root }}/distribution/policies.json"
       register: policy_file
       when: firefox_version.rc == 0
 
-    - name: Show if policy file exists
-      debug:
-        msg: "policies.json exists: {{ policy_file.stat.exists }}"
-      when: firefox_version.rc == 0
-
     - name: Read policies.json if present
-      command: cat {{ firefox_policy_root }}/distribution/policies.json
+      shell: cat "{{ firefox_policy_root }}/distribution/policies.json"
       register: policy_content
       when: policy_file.stat.exists
       changed_when: false
 
-    - name: Show policies.json content
+    - name: Show policy status
       debug:
         msg: |
           ===== {{ inventory_hostname }} =====
