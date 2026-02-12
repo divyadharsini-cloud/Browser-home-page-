@@ -1,55 +1,49 @@
-- name: Audit Firefox version and policy compliance
-  hosts: Batch3
+- name: Audit Firefox policy directories
+  hosts: Test-Batch1
   become: yes
   gather_facts: no
 
   tasks:
 
-    - name: Check if Firefox is installed
+    - name: Check Firefox
       command: firefox --version
       register: firefox_version
       ignore_errors: yes
       changed_when: false
 
-    - name: Show Firefox version
-      debug:
-        msg: "Firefox version on {{ inventory_hostname }}: {{ firefox_version.stdout }}"
-      when: firefox_version.rc == 0
+    - name: Skip if Firefox not installed
+      meta: end_host
+      when: firefox_version.rc != 0
 
-    - name: Get real Firefox binary path
+    - name: Get real Firefox binary
       shell: readlink -f "$(which firefox)"
       register: firefox_real
-      when: firefox_version.rc == 0
       changed_when: false
-
-    - name: Show real Firefox path
-      debug:
-        msg: "Firefox binary on {{ inventory_hostname }}: {{ firefox_real.stdout }}"
-      when: firefox_version.rc == 0
 
     - name: Set Firefox policy root
       set_fact:
-        firefox_policy_root: "{{ firefox_real.stdout | regex_replace('/firefox$', '') }}"
-      when: firefox_version.rc == 0
+        firefox_policy_root: >-
+          {% if firefox_real.stdout == '/usr/bin/firefox' %}
+          /usr/lib/firefox
+          {% else %}
+          {{ firefox_real.stdout | regex_replace('/firefox$', '') }}
+          {% endif %}
 
-    - name: Check if policies.json exists
+    - name: Check distribution folder
+      stat:
+        path: "{{ firefox_policy_root }}/distribution"
+      register: dist_dir
+
+    - name: Check policies.json
       stat:
         path: "{{ firefox_policy_root }}/distribution/policies.json"
       register: policy_file
-      when: firefox_version.rc == 0
 
-    - name: Read policies.json if present
-      shell: cat "{{ firefox_policy_root }}/distribution/policies.json"
-      register: policy_content
-      when: policy_file.stat.exists
-      changed_when: false
-
-    - name: Show policy status
+    - name: Show audit result
       debug:
         msg: |
           ===== {{ inventory_hostname }} =====
-          Firefox: {{ firefox_version.stdout }}
-          Binary: {{ firefox_real.stdout }}
-          Policy file: {{ firefox_policy_root }}/distribution/policies.json
-          {{ policy_content.stdout | default("NO POLICY FILE FOUND") }}
-      when: firefox_version.rc == 0
+          Firefox binary: {{ firefox_real.stdout }}
+          Policy root: {{ firefox_policy_root }}
+          distribution exists: {{ dist_dir.stat.exists }}
+          policies.json exists: {{ policy_file.stat.exists }}
