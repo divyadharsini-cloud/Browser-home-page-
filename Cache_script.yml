@@ -1,6 +1,6 @@
 ---
 - name: Deploy automatic cache cleanup on boot
-  hosts: Unit-2&3
+  hosts: Batch3
   become: true
   gather_facts: false
 
