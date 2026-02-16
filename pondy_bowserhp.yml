@@ -1,0 +1,64 @@
+---
+- name: Enforce Firefox Enterprise Policies (via /etc only)
+  hosts: Test-Batch1
+  become: yes
+  gather_facts: no
+
+  tasks:
+
+    - name: Ensure /etc/firefox exists
+      file:
+        path: /etc/firefox
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Ensure /etc/firefox/policies exists
+      file:
+        path: /etc/firefox/policies
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Backup existing policies.json if it exists
+      copy:
+        src: /etc/firefox/policies/policies.json
+        dest: /etc/firefox/policies/policies.json.bak
+        remote_src: yes
+      ignore_errors: yes
+
+    - name: Deploy merged Firefox policies.json
+      copy:
+        dest: /etc/firefox/policies/policies.json
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          {
+            "policies": {
+              "DisableAppUpdate": true,
+              "DisablePasswordManager": true,
+              "PasswordManagerEnabled": false,
+              "DisableFirefoxAccounts": true,
+              "BlockAboutAddons": true,
+              "Homepage": {
+                "Locked": true,
+                "URL": "https://eyenotes.aravind.org/eyenotes"
+              },
+              "PopupBlocking": {
+                "Default": false,
+                "Locked": true
+              },
+              "SanitizeOnShutdown": {
+                "Cache": true
+              },
+              "Preferences": {
+                "signon.rememberSignons": {
+                  "Value": false,
+                  "Status": "locked"
+                }
+              }
+            }
+          }
