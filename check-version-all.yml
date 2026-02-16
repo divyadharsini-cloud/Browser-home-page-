@@ -1,6 +1,6 @@
 ---
 - name: Firefox Enterprise Policy Audit
-  hosts: Test-Batch1 
+  hosts: Unit-2&3 
   become: yes
   gather_facts: no
 
