@@ -1,6 +1,6 @@
 ---
 - name: Deploy automatic cache cleanup on boot
-  hosts: FH-pdy
+  hosts: DPDYFHGFASC0004, DPDYFHGFRET0481, DPDYFHGFSPR562, DPDYFHGFSRF0142
   become: true
   gather_facts: false
 
