@@ -1,0 +1,24 @@
+---
+- name: Graceful shutdown for Ubuntu and Kali (1 minute warning)
+  hosts: kali
+  become: yes
+  gather_facts: yes
+
+  tasks:
+
+    - name: Display target system details
+      debug:
+        msg: >
+          Target: {{ inventory_hostname }}
+          OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+
+    - name: Ensure system is Debian-based (Ubuntu/Kali)
+      fail:
+        msg: "This playbook supports only Debian-based systems."
+      when: ansible_os_family != "Debian"
+
+    - name: Send 1-minute shutdown warning
+      command: /sbin/shutdown -h +1 "WARNING: System will shutdown in 1 minute via AWX"
+
+    - name: End play immediately to avoid SSH unreachable error
+      meta: end_play
