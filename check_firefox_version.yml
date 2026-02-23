@@ -1,6 +1,6 @@
 ---
 - name: Check Firefox version on all systems
-  hosts: FH-pdy
+  hosts: Batch5
   become: yes
   gather_facts: no
 
