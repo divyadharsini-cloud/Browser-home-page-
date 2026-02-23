@@ -1,6 +1,6 @@
 ---
 - name: Firefox Enterprise Policy Audit
-  hosts: FH-pdy 
+  hosts: Batch5 
   become: yes
   gather_facts: no
 
