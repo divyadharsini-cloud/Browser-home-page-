@@ -1,6 +1,6 @@
 ---
 - name: Deploy automatic cache cleanup on boot
-  hosts: Batch5
+  hosts: DPDYPH1FLIB0505
   become: true
   gather_facts: false
 
