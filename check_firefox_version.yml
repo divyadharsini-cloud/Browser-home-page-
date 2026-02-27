@@ -1,6 +1,6 @@
 ---
 - name: Check Firefox version on all systems
-  hosts: Batch7
+  hosts: Batch8
   become: yes
   gather_facts: no
 
