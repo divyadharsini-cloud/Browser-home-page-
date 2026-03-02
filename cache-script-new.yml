@@ -5,9 +5,9 @@
   gather_facts: false
 
   vars:
-    cleanup_script_path: /usr/local/bin/clear_cache.sh
-    systemd_service_path: /etc/systemd/system/cache-clear-on-boot.service
-    log_file_path: /var/log/cache_cleanup.log
+    cleanup_script_path: /usr/local/bin/clear_firefox_cache.sh
+    systemd_service_path: /etc/systemd/system/firefox-cache-cleanup.service
+    log_file_path: /var/log/firefox_cache_cleanup.log
 
   tasks:
 
@@ -17,14 +17,20 @@
         mode: '0755'
         content: |
           #!/bin/bash
-
           LOG_FILE="{{ log_file_path }}"
-
           echo "------------------------------------------" >> "$LOG_FILE"
           echo "$(date): Starting Firefox cache content cleanup" >> "$LOG_FILE"
 
-          # Find all Firefox cache2 directories and remove only their contents
-          find /home/*/.cache/mozilla/firefox -type d -name "cache2" -exec rm -rf {}/* \; 2>/dev/null
+          # Loop through all users in /home
+          for user_home in /home/*; do
+            # Only proceed if it's a directory
+            [ -d "$user_home/.cache/mozilla/firefox" ] || continue
+
+            # Find all cache2 directories and remove only their contents
+            find "$user_home/.cache/mozilla/firefox" -type d -name "cache2" -exec rm -rf {}/* \; 2>/dev/null
+
+            echo "$(date): Cleared cache2 contents for $user_home" >> "$LOG_FILE"
+          done
 
           echo "$(date): Firefox cache content cleanup completed" >> "$LOG_FILE"
 
@@ -47,9 +53,9 @@
     - name: Reload systemd daemon
       command: systemctl daemon-reload
 
-    - name: Enable cache-clear-on-boot service
+    - name: Enable firefox-cache-cleanup service
       systemd:
-        name: cache-clear-on-boot.service
+        name: firefox-cache-cleanup.service
         enabled: true
 
     - name: (Optional) Run cleanup once immediately
