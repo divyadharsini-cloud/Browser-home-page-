@@ -1,0 +1,34 @@
+---
+- name: Check which Firefox profiles contain cache2 directory
+  hosts: Test-Batch1
+  become: yes
+  gather_facts: false
+
+  tasks:
+
+    - name: Find all Firefox profile directories
+      find:
+        paths: /home
+        patterns: "*"
+        file_type: directory
+        recurse: yes
+      register: home_dirs
+
+    - name: Filter only Firefox profile directories
+      set_fact:
+        firefox_profiles: "{{ home_dirs.files | selectattr('path', 'search', '/.cache/mozilla/firefox/') | list }}"
+
+    - name: Check if cache2 exists inside profile
+      stat:
+        path: "{{ item.path }}/cache2"
+      loop: "{{ firefox_profiles }}"
+      register: cache_check
+
+    - name: Display profiles that contain cache2
+      debug:
+        msg: |
+          User: {{ item.item.path.split('/')[2] }}
+          Profile: {{ item.item.path.split('/')[-1] }}
+          Cache2: PRESENT
+      loop: "{{ cache_check.results }}"
+      when: item.stat.exists
