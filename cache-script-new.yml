@@ -1,5 +1,5 @@
 ---
-- name: Deploy automatic Firefox cache content cleanup on boot
+- name: Deploy automatic Firefox cache cleanup on boot
   hosts: DMDUPH1FIOLCOU1
   become: true
   gather_facts: false
@@ -7,7 +7,7 @@
   vars:
     cleanup_script_path: /usr/local/bin/clear_firefox_cache.sh
     systemd_service_path: /etc/systemd/system/firefox-cache-cleanup.service
-    log_file_path: /var/log/firefox_cache_cleanup.log
+    log_file_path: /var/log/cache_cleanup.log
 
   tasks:
 
@@ -18,18 +18,19 @@
         content: |
           #!/bin/bash
           LOG_FILE="{{ log_file_path }}"
+
           echo "------------------------------------------" >> "$LOG_FILE"
           echo "$(date): Starting Firefox cache content cleanup" >> "$LOG_FILE"
 
-          # Loop through all users in /home
           for user_home in /home/*; do
-            # Only proceed if it's a directory
-            [ -d "$user_home/.cache/mozilla/firefox" ] || continue
+            profile_path="$user_home/.cache/mozilla/firefox"
+            [ -d "$profile_path" ] || continue
 
-            # Find all cache2 directories and remove only their contents
-            find "$user_home/.cache/mozilla/firefox" -type d -name "cache2" -exec rm -rf {}/* \; 2>/dev/null
-
-            echo "$(date): Cleared cache2 contents for $user_home" >> "$LOG_FILE"
+            for cache_dir in "$profile_path"/*/cache2; do
+              [ -d "$cache_dir" ] || continue
+              rm -rf "$cache_dir"/*
+              echo "$(date): Cleared cache2 contents for $cache_dir" >> "$LOG_FILE"
+            done
           done
 
           echo "$(date): Firefox cache content cleanup completed" >> "$LOG_FILE"
@@ -53,13 +54,14 @@
     - name: Reload systemd daemon
       command: systemctl daemon-reload
 
-    - name: Enable firefox-cache-cleanup service
+    - name: Enable Firefox cache-cleanup service
       systemd:
         name: firefox-cache-cleanup.service
         enabled: true
 
     - name: (Optional) Run cleanup once immediately
       command: "{{ cleanup_script_path }}"
+      register: cleanup_result
       changed_when: false
 
     - name: Show last cleanup execution log
