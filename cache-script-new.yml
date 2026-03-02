@@ -1,0 +1,71 @@
+---
+- name: Deploy automatic Firefox cache content cleanup on boot
+  hosts: Batch8
+  become: true
+  gather_facts: false
+
+  vars:
+    cleanup_script_path: /usr/local/bin/clear_cache.sh
+    systemd_service_path: /etc/systemd/system/cache-clear-on-boot.service
+    log_file_path: /var/log/cache_cleanup.log
+
+  tasks:
+
+    - name: Create Firefox cache cleanup script
+      copy:
+        dest: "{{ cleanup_script_path }}"
+        mode: '0755'
+        content: |
+          #!/bin/bash
+
+          LOG_FILE="{{ log_file_path }}"
+
+          echo "------------------------------------------" >> "$LOG_FILE"
+          echo "$(date): Starting Firefox cache content cleanup" >> "$LOG_FILE"
+
+          # Find all Firefox cache2 directories and remove only their contents
+          find /home/*/.cache/mozilla/firefox -type d -name "cache2" -exec rm -rf {}/* \; 2>/dev/null
+
+          echo "$(date): Firefox cache content cleanup completed" >> "$LOG_FILE"
+
+    - name: Create systemd service file
+      copy:
+        dest: "{{ systemd_service_path }}"
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Clear Firefox cache contents after system boot
+          After=multi-user.target
+
+          [Service]
+          Type=oneshot
+          ExecStart={{ cleanup_script_path }}
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Reload systemd daemon
+      command: systemctl daemon-reload
+
+    - name: Enable cache-clear-on-boot service
+      systemd:
+        name: cache-clear-on-boot.service
+        enabled: true
+
+    - name: (Optional) Run cleanup once immediately
+      command: "{{ cleanup_script_path }}"
+      changed_when: false
+
+    - name: Show last cleanup execution log
+      shell: tail -n 5 "{{ log_file_path }}"
+      register: cleanup_log
+      ignore_errors: yes
+
+    - name: Display result summary
+      debug:
+        msg:
+          - "✅ Cache cleanup script deployed at: {{ cleanup_script_path }}"
+          - "✅ Systemd service installed at: {{ systemd_service_path }}"
+          - "✅ Service enabled to trigger on boot"
+          - "🧾 Last cleanup log entries:"
+          - "{{ cleanup_log.stdout_lines | default(['No logs yet']) }}"
