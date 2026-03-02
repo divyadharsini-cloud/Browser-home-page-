@@ -1,34 +1,38 @@
 ---
-- name: Report Firefox profiles containing cache2
+- name: Report non-default-release Firefox profiles containing cache2
   hosts: Test-Batch1
   become: yes
   gather_facts: false
 
   tasks:
 
-    - name: Get all user home directories (only first level)
+    - name: Get user home directories
       find:
         paths: /home
         file_type: directory
         depth: 1
       register: home_users
 
-    - name: Check Firefox profile directories for each user
+    - name: Search for cache2 directories excluding default-release profiles
       shell: |
         if [ -d "{{ item.path }}/.cache/mozilla/firefox" ]; then
-          find "{{ item.path }}/.cache/mozilla/firefox" -mindepth 1 -maxdepth 2 -type d -name "cache2"
+          find "{{ item.path }}/.cache/mozilla/firefox" \
+          -mindepth 2 -maxdepth 2 \
+          -type d -name "cache2" \
+          ! -path "*default-release*"
         fi
       loop: "{{ home_users.files }}"
       register: cache2_results
       changed_when: false
       ignore_errors: yes
 
-    - name: Display profiles that contain cache2
+    - name: Display structured output (only non-default-release profiles)
       debug:
         msg: |
-          Host: {{ inventory_hostname }}
-          User: {{ item.stdout.split('/')[2] }}
-          Profile: {{ item.stdout.split('/')[-2] }}
-          Cache2 Directory: {{ item.stdout }}
+          Host    : {{ inventory_hostname }}
+          User    : {{ item.stdout.split('/')[2] }}
+          Profile : {{ item.stdout.split('/')[-2] }}
+          Cache2  : PRESENT
+          Path    : {{ item.stdout }}
       loop: "{{ cache2_results.results }}"
       when: item.stdout != ""
