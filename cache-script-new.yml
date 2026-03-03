@@ -1,6 +1,6 @@
 ---
 - name: Deploy automatic Firefox cache cleanup on boot
-  hosts: DMDUPH1FIOLCOU1
+  hosts: Batch2
   become: true
   gather_facts: false
 
