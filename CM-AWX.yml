@@ -1,6 +1,6 @@
 ---
 - name: Configure client to report IP to AWX at boot
-  hosts: Batch1
+  hosts: Batch3
 
   become: yes
 
