@@ -18,10 +18,7 @@
         content: |
           #!/bin/bash
           LOG_FILE="{{ log_file_path }}"
-
-          echo "------------------------------------------" >> "$LOG_FILE"
-          echo "$(date): Starting Firefox cache content cleanup" >> "$LOG_FILE"
-
+          CLEANED=0
           for user_home in /home/*; do
             profile_path="$user_home/.cache/mozilla/firefox"
             [ -d "$profile_path" ] || continue
@@ -29,11 +26,14 @@
             for cache_dir in "$profile_path"/*/cache2; do
               [ -d "$cache_dir" ] || continue
               rm -rf "$cache_dir"/*
-              echo "$(date): Cleared cache2 contents for $cache_dir" >> "$LOG_FILE"
+              CLEANED=1
             done
           done
 
-          echo "$(date): Firefox cache content cleanup completed" >> "$LOG_FILE"
+          #Write only one clean line
+          if [ "$Cleaned" -eq 1 ]; then
+            echo "$(date): Cache cleared" >> "$LOG_FILE"
+          fi
 
     - name: Create systemd service file
       copy:
