@@ -30,14 +30,13 @@
         state: absent
 
     # Create new cleanup script
-    - name: Create Firefox cache cleanup script (epoch format)
+    - name: Create Firefox cache cleanup script
       copy:
         dest: "{{ cleanup_script_path }}"
         mode: '0755'
         content: |
           #!/bin/bash
           LOG_FILE="{{ log_file_path }}"
-          CLEANED=0
 
           for user_home in /home/*; do
             profile_path="$user_home/.cache/mozilla/firefox"
@@ -45,15 +44,11 @@
 
             for cache_dir in "$profile_path"/*/cache2; do
               [ -d "$cache_dir" ] || continue
-              rm -rf "$cache_dir"/*
-              CLEANED=1
+              rm -rf "$cache_dir"/* 2>/dev/null
             done
           done
 
-          if [ "$CLEANED" -eq 1 ]; then
-            TIMESTAMP=$(date +%s)
-            echo "$TIMESTAMP" > "$LOG_FILE"
-          fi
+          echo "$(date): Cache cleared" >> "$LOG_FILE"
       notify: Reload systemd
 
     # Create systemd service
@@ -63,7 +58,7 @@
         mode: '0644'
         content: |
           [Unit]
-          Description=Clear Firefox cache contents after system boot
+          Description=Clear Firefox cache after system boot
           After=multi-user.target
 
           [Service]
@@ -77,10 +72,10 @@
     - name: Enable and start Firefox cache cleanup service
       systemd:
         name: firefox-cache-cleanup.service
-        state: started
         enabled: true
+        state: started
 
-    - name: Show current cleanup log
+    - name: Show full log entries
       shell: cat "{{ log_file_path }}"
       register: cleanup_log
       ignore_errors: true
@@ -88,9 +83,9 @@
     - name: Display result summary
       debug:
         msg:
-          - "Firefox cleanup service deployed and started"
-          - "Current stored timestamp:"
-          - "{{ cleanup_log.stdout | default('No timestamp yet') }}"
+          - "Firefox cleanup service deployed successfully"
+          - "Full log entries:"
+          - "{{ cleanup_log.stdout_lines | default(['No logs yet']) }}"
 
   handlers:
     - name: Reload systemd
