@@ -1,6 +1,6 @@
 ---
 - name: Remove old cache service and deploy Firefox cache cleanup
-  hosts: OP-2
+  hosts: Melur
   become: true
   gather_facts: false
 
@@ -11,9 +11,7 @@
 
   tasks:
 
-    # ----------------------------
-    # Remove OLD backend service
-    # ----------------------------
+    # Remove old service if exists
     - name: Stop and disable old service if exists
       systemd:
         name: cache-clear-on-boot.service
@@ -31,10 +29,8 @@
         path: /usr/local/bin/clear_cache.sh
         state: absent
 
-    # ----------------------------
-    # Deploy NEW Firefox cleanup
-    # ----------------------------
-    - name: Create Firefox cache cleanup script
+    # Create new cleanup script
+    - name: Create Firefox cache cleanup script (epoch format)
       copy:
         dest: "{{ cleanup_script_path }}"
         mode: '0755'
@@ -55,10 +51,12 @@
           done
 
           if [ "$CLEANED" -eq 1 ]; then
-            echo "$(date '+%Y-%m-%d %H:%M:%S'): Cache cleared" > "$LOG_FILE"
+            TIMESTAMP=$(date +%s)
+            echo "$TIMESTAMP" > "$LOG_FILE"
           fi
       notify: Reload systemd
 
+    # Create systemd service
     - name: Create systemd service file
       copy:
         dest: "{{ systemd_service_path }}"
@@ -82,7 +80,7 @@
         state: started
         enabled: true
 
-    - name: Show current cleanup log (if exists)
+    - name: Show current cleanup log
       shell: cat "{{ log_file_path }}"
       register: cleanup_log
       ignore_errors: true
@@ -90,9 +88,9 @@
     - name: Display result summary
       debug:
         msg:
-          - "Old backend service removed (if existed)"
           - "Firefox cleanup service deployed and started"
-          - "{{ cleanup_log.stdout | default('No log entry yet') }}"
+          - "Current stored timestamp:"
+          - "{{ cleanup_log.stdout | default('No timestamp yet') }}"
 
   handlers:
     - name: Reload systemd
