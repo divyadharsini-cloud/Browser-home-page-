@@ -1,6 +1,6 @@
 ---
 - name: Remove old cache-clear service and start Firefox cleanup service
-  hosts: GF-1
+  hosts: GF-2
   become: true
   gather_facts: false
 
