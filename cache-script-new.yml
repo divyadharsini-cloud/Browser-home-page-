@@ -1,5 +1,5 @@
 ---
-- name: Deploy automatic Firefox cache cleanup on boot
+- name: Remove old cache service and deploy Firefox cache cleanup
   hosts: DMDUPH1FIOLCOU1
   become: true
   gather_facts: false
@@ -11,6 +11,29 @@
 
   tasks:
 
+    # ----------------------------
+    # Remove OLD backend service
+    # ----------------------------
+    - name: Stop and disable old service if exists
+      systemd:
+        name: cache-clear-on-boot.service
+        state: stopped
+        enabled: false
+      ignore_errors: true
+
+    - name: Remove old service file
+      file:
+        path: /etc/systemd/system/cache-clear-on-boot.service
+        state: absent
+
+    - name: Remove old cleanup script
+      file:
+        path: /usr/local/bin/clear_cache.sh
+        state: absent
+
+    # ----------------------------
+    # Deploy NEW Firefox cleanup
+    # ----------------------------
     - name: Create Firefox cache cleanup script
       copy:
         dest: "{{ cleanup_script_path }}"
@@ -31,10 +54,10 @@
             done
           done
 
-          # Write only one clean line (overwrite old log)
           if [ "$CLEANED" -eq 1 ]; then
             echo "$(date '+%Y-%m-%d %H:%M:%S'): Cache cleared" > "$LOG_FILE"
           fi
+      notify: Reload systemd
 
     - name: Create systemd service file
       copy:
@@ -51,30 +74,27 @@
 
           [Install]
           WantedBy=multi-user.target
+      notify: Reload systemd
 
-    - name: Reload systemd daemon
-      systemd:
-        daemon_reload: true
-
-    - name: Enable Firefox cache-cleanup service
+    - name: Enable and start Firefox cache cleanup service
       systemd:
         name: firefox-cache-cleanup.service
+        state: started
         enabled: true
 
-    - name: (Optional) Run cleanup once immediately
-      command: "{{ cleanup_script_path }}"
-      changed_when: false
-
-    - name: Show current cleanup log
+    - name: Show current cleanup log (if exists)
       shell: cat "{{ log_file_path }}"
       register: cleanup_log
-      ignore_errors: yes
+      ignore_errors: true
 
     - name: Display result summary
       debug:
         msg:
-          - "✅ Cache cleanup script deployed at: {{ cleanup_script_path }}"
-          - "✅ Systemd service installed at: {{ systemd_service_path }}"
-          - "✅ Service enabled to trigger on boot"
-          - "🧾 Current log entry:"
+          - "Old backend service removed (if existed)"
+          - "Firefox cleanup service deployed and started"
           - "{{ cleanup_log.stdout | default('No log entry yet') }}"
+
+  handlers:
+    - name: Reload systemd
+      systemd:
+        daemon_reload: true
