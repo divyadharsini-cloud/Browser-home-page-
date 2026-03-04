@@ -1,6 +1,6 @@
 ---
 - name: Deploy automatic Firefox cache cleanup on boot
-  hosts: Batch1
+  hosts: TMDUPHGFU040012
   become: true
   gather_facts: false
 
@@ -19,6 +19,7 @@
           #!/bin/bash
           LOG_FILE="{{ log_file_path }}"
           CLEANED=0
+
           for user_home in /home/*; do
             profile_path="$user_home/.cache/mozilla/firefox"
             [ -d "$profile_path" ] || continue
@@ -30,9 +31,9 @@
             done
           done
 
-          #Write only one clean line
-          if [ "$Cleaned" -eq 1 ]; then
-            echo "$(date): Cache cleared" >> "$LOG_FILE"
+          # Write only one clean line (overwrite old log)
+          if [ "$CLEANED" -eq 1 ]; then
+            echo "$(date '+%Y-%m-%d %H:%M:%S'): Cache cleared" > "$LOG_FILE"
           fi
 
     - name: Create systemd service file
@@ -52,7 +53,8 @@
           WantedBy=multi-user.target
 
     - name: Reload systemd daemon
-      command: systemctl daemon-reload
+      systemd:
+        daemon_reload: true
 
     - name: Enable Firefox cache-cleanup service
       systemd:
@@ -61,11 +63,10 @@
 
     - name: (Optional) Run cleanup once immediately
       command: "{{ cleanup_script_path }}"
-      register: cleanup_result
       changed_when: false
 
-    - name: Show last cleanup execution log
-      shell: tail -n 5 "{{ log_file_path }}"
+    - name: Show current cleanup log
+      shell: cat "{{ log_file_path }}"
       register: cleanup_log
       ignore_errors: yes
 
@@ -75,5 +76,5 @@
           - "✅ Cache cleanup script deployed at: {{ cleanup_script_path }}"
           - "✅ Systemd service installed at: {{ systemd_service_path }}"
           - "✅ Service enabled to trigger on boot"
-          - "🧾 Last cleanup log entries:"
-          - "{{ cleanup_log.stdout_lines | default(['No logs yet']) }}"
+          - "🧾 Current log entry:"
+          - "{{ cleanup_log.stdout | default('No log entry yet') }}"
