@@ -1,5 +1,5 @@
 ---
-- name: Deploy Firefox cache cleanup with Prometheus epoch
+- name: Deploy Firefox cache cleanup (log-only)
   hosts: linux_servers
   become: true
   gather_facts: false
@@ -29,7 +29,7 @@
         path: /usr/local/bin/clear_cache.sh
         state: absent
 
-    # 2️⃣ Create Firefox cache cleanup script with epoch timestamp
+    # 2️⃣ Create Firefox cache cleanup script (log-only)
     - name: Create Firefox cache cleanup script
       copy:
         dest: "{{ cleanup_script_path }}"
@@ -38,6 +38,7 @@
           #!/bin/bash
           LOG_FILE="{{ log_file_path }}"
 
+          # Clear Firefox cache for all users
           for user_home in /home/*; do
             profile_path="$user_home/.cache/mozilla/firefox"
             [ -d "$profile_path" ] || continue
@@ -48,16 +49,12 @@
             done
           done
 
-          # Human-readable log (exactly like old script)
+          # Write human-readable log (exactly like old script)
           echo "$(date): Cache cleared" >> "$LOG_FILE"
-
-          # Epoch timestamp appended to the same log file
-          CURRENT_TIME=$(date +%s)
-          echo "cache_last_cleared_timestamp $CURRENT_TIME" >> "$LOG_FILE"
 
       notify: Reload systemd
 
-    # 3️⃣ Create systemd service
+    # 3️⃣ Create systemd service file
     - name: Create systemd service file
       copy:
         dest: "{{ systemd_service_path }}"
