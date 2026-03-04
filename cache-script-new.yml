@@ -1,6 +1,6 @@
 ---
 - name: Remove old cache service and deploy Firefox cache cleanup
-  hosts: DMDUPH1FIOLCOU1
+  hosts: Melur
   become: true
   gather_facts: false
 
