@@ -29,8 +29,8 @@
         path: /usr/local/bin/clear_cache.sh
         state: absent
 
-    # 2️⃣ Create new cleanup script
-    - name: Create Firefox cache cleanup script with epoch timestamp
+    # 2️⃣ Create Firefox cache cleanup script with epoch timestamp
+    - name: Create Firefox cache cleanup script
       copy:
         dest: "{{ cleanup_script_path }}"
         mode: '0755'
@@ -48,12 +48,12 @@
             done
           done
 
-          # Human-readable log
+          # Human-readable log (exactly like old script)
           echo "$(date): Cache cleared" >> "$LOG_FILE"
 
-          # Epoch timestamp for Prometheus
+          # Epoch timestamp appended to the same log file
           CURRENT_TIME=$(date +%s)
-          echo "cache_last_cleared_timestamp $CURRENT_TIME"
+          echo "cache_last_cleared_timestamp $CURRENT_TIME" >> "$LOG_FILE"
 
       notify: Reload systemd
 
