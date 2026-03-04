@@ -1,6 +1,6 @@
 ---
 - name: Remove old cache service and deploy Firefox cache cleanup
-  host: Tirumangalam
+  hosts: Tirumangalam
   become: true
   gather_facts: false
 
