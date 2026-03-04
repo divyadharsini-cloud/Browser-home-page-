@@ -1,6 +1,6 @@
 ---
 - name: Remove old cache service and deploy Firefox cache cleanup
-  hosts: OP-1
+  hosts: OP-2
   become: true
   gather_facts: false
 
