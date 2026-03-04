@@ -1,6 +1,6 @@
 ---
 - name: Remove old cache service and deploy Firefox cache cleanup
-  hosts: Tirumangalam
+  hosts: Glaucoma-op
   become: true
   gather_facts: false
 
