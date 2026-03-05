@@ -1,11 +1,11 @@
 ---
 - name: Deploy Firefox cache cleanup on boot
-  hosts: linux_servers
+  hosts: Tirumangalam
   become: true
   gather_facts: false
 
   vars:
-    cleanup_script_path: /usr/local/bin/clear_cache.sh
+    cleanup_script_path: /usr/local/bin/clear_firefox_cache.sh
     systemd_service_path: /etc/systemd/system/firefox-cache-cleanup.service
     log_file_path: /var/log/cache_cleanup.log
 
