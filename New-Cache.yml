@@ -36,7 +36,7 @@
           done
 
           # Write human-readable log
-          echo "$(date): Firefox cache cleared" >> "$LOG_FILE"
+          echo "$(date): Cache cleared" >> "$LOG_FILE"
 
     - name: Ensure Firefox cache cleanup systemd service exists
       copy:
