@@ -11,6 +11,11 @@
 
   tasks:
 
+    - name: Remove existing Firefox cache log file
+      file:
+        path: "{{ log_file_path }}"
+        state: absent
+
     - name: Create Firefox cache cleanup script
       copy:
         dest: "{{ cleanup_script_path }}"
@@ -61,6 +66,7 @@
         msg:
           - "✅ Firefox cache cleanup script deployed at: {{ cleanup_script_path }}"
           - "✅ Service enabled and running: firefox-cache-cleanup.service"
+          - "✅ Existing cache log cleared: {{ log_file_path }}"
 
   handlers:
     - name: Reload systemd
