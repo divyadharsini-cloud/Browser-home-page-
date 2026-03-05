@@ -1,35 +1,16 @@
 ---
-- name: Deploy Firefox cache cleanup (log-only)
+- name: Deploy Firefox cache cleanup on boot
   hosts: linux_servers
   become: true
   gather_facts: false
 
   vars:
-    cleanup_script_path: /usr/local/bin/clear_firefox_cache.sh
+    cleanup_script_path: /usr/local/bin/clear_cache.sh
     systemd_service_path: /etc/systemd/system/firefox-cache-cleanup.service
     log_file_path: /var/log/cache_cleanup.log
 
   tasks:
 
-    # 1️⃣ Remove old service if exists
-    - name: Stop and disable old service if exists
-      systemd:
-        name: cache-clear-on-boot.service
-        state: stopped
-        enabled: false
-      ignore_errors: true
-
-    - name: Remove old service file
-      file:
-        path: /etc/systemd/system/cache-clear-on-boot.service
-        state: absent
-
-    - name: Remove old cleanup script
-      file:
-        path: /usr/local/bin/clear_cache.sh
-        state: absent
-
-    # 2️⃣ Create Firefox cache cleanup script (log-only)
     - name: Create Firefox cache cleanup script
       copy:
         dest: "{{ cleanup_script_path }}"
@@ -38,7 +19,7 @@
           #!/bin/bash
           LOG_FILE="{{ log_file_path }}"
 
-          # Clear Firefox cache for all users
+          # Clear Firefox cache for all user profiles
           for user_home in /home/*; do
             profile_path="$user_home/.cache/mozilla/firefox"
             [ -d "$profile_path" ] || continue
@@ -49,13 +30,10 @@
             done
           done
 
-          # Write human-readable log (exactly like old script)
-          echo "$(date): Cache cleared" >> "$LOG_FILE"
+          # Write human-readable log
+          echo "$(date): Firefox cache cleared" >> "$LOG_FILE"
 
-      notify: Reload systemd
-
-    # 3️⃣ Create systemd service file
-    - name: Create systemd service file
+    - name: Ensure Firefox cache cleanup systemd service exists
       copy:
         dest: "{{ systemd_service_path }}"
         mode: '0644'
@@ -72,27 +50,18 @@
           WantedBy=multi-user.target
       notify: Reload systemd
 
-    # 4️⃣ Enable and start the service
     - name: Enable and start Firefox cache cleanup service
       systemd:
         name: firefox-cache-cleanup.service
         enabled: true
         state: started
 
-    # 5️⃣ Display current logs (optional)
-    - name: Show full log entries
-      shell: cat "{{ log_file_path }}"
-      register: cleanup_log
-      ignore_errors: true
-
-    - name: Display result summary
+    - name: Display deployment summary
       debug:
         msg:
-          - "Firefox cleanup service deployed successfully"
-          - "Full log entries:"
-          - "{{ cleanup_log.stdout_lines | default(['No logs yet']) }}"
+          - "✅ Firefox cache cleanup script deployed at: {{ cleanup_script_path }}"
+          - "✅ Service enabled and running: firefox-cache-cleanup.service"
 
   handlers:
     - name: Reload systemd
-      systemd:
-        daemon_reload: true
+      command: systemctl daemon-reload
