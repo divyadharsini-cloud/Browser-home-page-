@@ -5,8 +5,8 @@
   gather_facts: false
 
   vars:
-    cleanup_script_path: /usr/local/bin/clear_firefox_cache.sh
-    systemd_service_path: /etc/systemd/system/firefox-cache-cleanup.service
+    cleanup_script_path: /usr/local/bin/clear_cache.sh
+    systemd_service_path: /etc/systemd/system/cache-clear-on-boot.service.service
     log_file_path: /var/log/cache_cleanup.log
 
   tasks:
@@ -57,7 +57,7 @@
 
     - name: Enable and start Firefox cache cleanup service
       systemd:
-        name: firefox-cache-cleanup.service
+        name: cache-clear-on-boot.service.service
         enabled: true
         state: started
 
@@ -65,7 +65,7 @@
       debug:
         msg:
           - "✅ Firefox cache cleanup script deployed at: {{ cleanup_script_path }}"
-          - "✅ Service enabled and running: firefox-cache-cleanup.service"
+          - "✅ Service enabled and running: cache-clear-on-boot.service.service"
           - "✅ Existing cache log cleared: {{ log_file_path }}"
 
   handlers:
