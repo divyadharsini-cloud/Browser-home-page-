@@ -52,7 +52,7 @@
 
     - name: Enable and start Firefox cache cleanup service
       systemd:
-        name: cache-clear-on-boot.service.service
+        name: cache-clear-on-boot.service
         enabled: true
         state: started
 
