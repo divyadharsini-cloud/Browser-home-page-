@@ -11,11 +11,6 @@
 
   tasks:
 
-    - name: Remove existing Firefox cache log file
-      file:
-        path: "{{ log_file_path }}"
-        state: absent
-
     - name: Create Firefox cache cleanup script
       copy:
         dest: "{{ cleanup_script_path }}"
@@ -64,9 +59,11 @@
     - name: Display deployment summary
       debug:
         msg:
-          - "✅ Firefox cache cleanup script deployed at: {{ cleanup_script_path }}"
-          - "✅ Service enabled and running: cache-clear-on-boot.service.service"
-          - "✅ Existing cache log cleared: {{ log_file_path }}"
+          - "✅ Cache cleanup script deployed at: {{ cleanup_script_path }}"
+          - "✅ Systemd service installed: {{ systemd_service_path }}"
+          - "✅ Service enabled to trigger on boot"
+          - "🧾 Last cleanup log entries:"
+          - "{{ cleanup_log.stdout_lines | default(['No logs yet']) }}"
 
   handlers:
     - name: Reload systemd
