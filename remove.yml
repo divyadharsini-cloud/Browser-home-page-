@@ -1,6 +1,6 @@
 ---
 - name: Remove wrong cache-clear-on-boot double service
-  hosts: FH-1
+  hosts: FH-2
   become: true
   gather_facts: false
 
