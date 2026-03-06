@@ -1,0 +1,27 @@
+---
+- name: Remove wrong cache-clear-on-boot double service
+  hosts: FH-1
+  become: true
+  gather_facts: false
+
+  tasks:
+
+    - name: Stop wrong service if running
+      systemd:
+        name: cache-clear-on-boot.service.service
+        state: stopped
+      ignore_errors: true
+
+    - name: Disable wrong service
+      systemd:
+        name: cache-clear-on-boot.service.service
+        enabled: false
+      ignore_errors: true
+
+    - name: Remove wrong service file
+      file:
+        path: /etc/systemd/system/cache-clear-on-boot.service.service
+        state: absent
+
+    - name: Reload systemd daemon
+      command: systemctl daemon-reload
