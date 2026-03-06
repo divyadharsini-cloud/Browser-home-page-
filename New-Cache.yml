@@ -6,7 +6,7 @@
 
   vars:
     cleanup_script_path: /usr/local/bin/clear_cache.sh
-    systemd_service_path: /etc/systemd/system/cache-clear-on-boot.service.service
+    systemd_service_path: /etc/systemd/system/cache-clear-on-boot.service
     log_file_path: /var/log/cache_cleanup.log
 
   tasks:
