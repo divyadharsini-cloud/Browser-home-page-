@@ -1,6 +1,6 @@
 ---
 - name: Configure client to report IP to AWX at boot
-  hosts: OP-2, DMDUPH2FORB0333
+  hosts: TMDUPH2FRET0003, TMDUPH2FRETRF02, DMDUPH2FORB0335
 
   become: yes
 
