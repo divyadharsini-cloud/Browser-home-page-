@@ -1,6 +1,6 @@
 ---
 - name: Install Firefox 117 from offline mirror
-  hosts: ansibletesting
+  hosts: DTNJPHGFUN20064
   become: yes
 
   vars:
