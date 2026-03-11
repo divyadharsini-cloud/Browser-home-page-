@@ -1,114 +1,101 @@
 ---
-- name: Enforce Firefox 117 on Kali Linux (install only if missing)
-  hosts: 172.17.16.130
+- name: Install Firefox 117 from offline mirror
+  hosts: 172.17.9.59
   become: yes
 
   vars:
     firefox_version: "117.0"
-    temp_dir: "/opt/temp"
-    offline_installer_url: "http://172.17.9.58/firefox/releases/117.0/linux-x86_64/en-US/firefox-117.0.tar.bz2"
-    installer_archive: "{{ temp_dir }}/firefox-117.0.tar.bz2"
+    firefox_url: "http://172.31.4.25/firefox/releases/117.0/linux-x86_64/en-US/firefox-117.0.tar.bz2"
+    download_path: "/tmp/firefox-117.0.tar.bz2"
     install_dir: "/opt/firefox117"
-    firefox_binary: "{{ install_dir }}/firefox"
-    check_script_path: "/usr/local/bin/check_firefox_version.sh"
-    cron_job_path: "/etc/cron.d/firefox_enforcer"
+    firefox_binary: "/opt/firefox117/firefox/firefox"
 
   tasks:
 
-    # -------------------------------------------------
-    # Detect Firefox 117
-    # -------------------------------------------------
-    - name: Check if Firefox 117 already exists
-      ansible.builtin.stat:
-        path: "{{ install_dir }}"
-      register: firefox117_dir
+  # ---------------------------------
+  # Kill running Firefox
+  # ---------------------------------
+  - name: Kill running Firefox
+    ansible.builtin.shell: pkill -f firefox || true
 
-    # -------------------------------------------------
-    # Install Firefox 117 ONLY if missing
-    # -------------------------------------------------
-    - name: Create temp directory
-      ansible.builtin.file:
-        path: "{{ temp_dir }}"
-        state: directory
-        mode: '0755'
-      when: not firefox117_dir.stat.exists
+  # ---------------------------------
+  # Remove package versions
+  # ---------------------------------
+  - name: Remove APT Firefox packages
+    ansible.builtin.apt:
+      name:
+        - firefox
+        - firefox-esr
+      state: absent
+      purge: yes
+    ignore_errors: yes
 
-    - name: Download Firefox 117 from OFFLINE mirror
-      ansible.builtin.get_url:
-        url: "{{ offline_installer_url }}"
-        dest: "{{ installer_archive }}"
-        mode: '0644'
-      when: not firefox117_dir.stat.exists
+  # ---------------------------------
+  # Remove old install directory
+  # ---------------------------------
+  - name: Remove old Firefox directory
+    ansible.builtin.file:
+      path: "{{ install_dir }}"
+      state: absent
 
-    - name: Create Firefox install directory
-      ansible.builtin.file:
-        path: "{{ install_dir }}"
-        state: directory
-        mode: '0755'
-      when: not firefox117_dir.stat.exists
+  # ---------------------------------
+  # Download Firefox 117
+  # ---------------------------------
+  - name: Download Firefox 117
+    ansible.builtin.get_url:
+      url: "{{ firefox_url }}"
+      dest: "{{ download_path }}"
+      mode: '0644'
 
-    - name: Extract Firefox 117
-      ansible.builtin.unarchive:
-        src: "{{ installer_archive }}"
-        dest: "{{ install_dir }}"
-        remote_src: yes
-      when: not firefox117_dir.stat.exists
+  # ---------------------------------
+  # Create install directory
+  # ---------------------------------
+  - name: Create install directory
+    ansible.builtin.file:
+      path: "{{ install_dir }}"
+      state: directory
+      mode: '0755'
 
-    - name: Remove downloaded archive
-      ansible.builtin.file:
-        path: "{{ installer_archive }}"
-        state: absent
-      when: not firefox117_dir.stat.exists
+  # ---------------------------------
+  # Extract Firefox
+  # ---------------------------------
+  - name: Extract Firefox
+    ansible.builtin.unarchive:
+      src: "{{ download_path }}"
+      dest: "{{ install_dir }}"
+      remote_src: yes
 
-    # -------------------------------------------------
-    # Prevent APT upgrades of Firefox ESR
-    # -------------------------------------------------
-    - name: Check if firefox-esr is available in APT
-      ansible.builtin.command: apt-cache policy firefox-esr
-      register: firefox_esr_policy
-      changed_when: false
-      failed_when: false
+  # ---------------------------------
+  # Create system binary link
+  # ---------------------------------
+  - name: Create /usr/bin/firefox symlink
+    ansible.builtin.file:
+      src: "{{ firefox_binary }}"
+      dest: /usr/bin/firefox
+      state: link
+      force: yes
 
-    - name: Hold firefox-esr package
-      ansible.builtin.command: apt-mark hold firefox-esr
-      when: '"Candidate: (none)" not in firefox_esr_policy.stdout'
+  # ---------------------------------
+  # Create application launcher
+  # ---------------------------------
+  - name: Create Firefox desktop launcher
+    ansible.builtin.copy:
+      dest: /usr/share/applications/firefox.desktop
+      mode: '0644'
+      content: |
+        [Desktop Entry]
+        Name=Firefox
+        Comment=Web Browser
+        Exec={{ firefox_binary }} %u
+        Icon={{ install_dir }}/firefox/browser/chrome/icons/default/default128.png
+        Terminal=false
+        Type=Application
+        Categories=Network;WebBrowser;
 
-    # -------------------------------------------------
-    # Force Firefox binary usage
-    # -------------------------------------------------
-    - name: Force /usr/bin/firefox to Firefox 117
-      ansible.builtin.file:
-        src: "{{ firefox_binary }}"
-        dest: "/usr/bin/firefox"
-        state: link
-        force: true
-
-    # -------------------------------------------------
-    # Auto-revert enforcement script
-    # -------------------------------------------------
-    - name: Create Firefox enforcement script
-      ansible.builtin.copy:
-        dest: "{{ check_script_path }}"
-        mode: '0755'
-        content: |
-          #!/bin/bash
-          correct="{{ firefox_binary }}"
-          link="/usr/bin/firefox"
-
-          if [[ ! -x "$correct" ]]; then
-            exit 0
-          fi
-
-          if [[ ! -L "$link" || "$(readlink -f "$link")" != "$correct" ]]; then
-            ln -sf "$correct" "$link"
-          fi
-
-    # -------------------------------------------------
-    # Enforce on reboot
-    # -------------------------------------------------
-    - name: Create cron job to enforce Firefox 117 on reboot
-      ansible.builtin.copy:
-        dest: "{{ cron_job_path }}"
-        mode: '0644'
-        content: |
-          @reboot root {{ check_script_path }}
+  # ---------------------------------
+  # Remove installer
+  # ---------------------------------
+  - name: Remove installer archive
+    ansible.builtin.file:
+      path: "{{ download_path }}"
+      state: absent
