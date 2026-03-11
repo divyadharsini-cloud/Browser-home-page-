@@ -16,7 +16,9 @@
   # Kill running Firefox
   # ---------------------------------
   - name: Kill running Firefox
-    ansible.builtin.shell: pkill -f firefox || true
+    ansible.builtin.shell: pkill -f firefox
+    failed_when: false
+    changed_when: false
 
   # ---------------------------------
   # Remove package versions
