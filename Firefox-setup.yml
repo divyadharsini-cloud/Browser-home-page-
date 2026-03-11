@@ -1,6 +1,6 @@
 ---
 - name: Install Firefox 117 from offline mirror
-  hosts: DTNJPHGFUN10011, DTNJPHGFUN10020, DTNJPHGFUN20058, DTNJPHGFUN10013, TTNJHGFUN20049, DTNJPHGFUN10012
+  hosts: TTNJHGFUN20049
   become: yes
 
   vars:
