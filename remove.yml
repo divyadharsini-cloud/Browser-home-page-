@@ -1,27 +1,43 @@
 ---
-- name: Remove wrong cache-clear-on-boot double service
-  hosts: FH-2
+- name: Remove Firefox cache cleanup service and script
+  hosts: Batch1
   become: true
   gather_facts: false
 
+  vars:
+    cleanup_script_path: /usr/local/bin/clear_firefox_cache.sh
+    systemd_service_path: /etc/systemd/system/firefox-cache-cleanup.service
+
   tasks:
 
-    - name: Stop wrong service if running
-      systemd:
-        name: cache-clear-on-boot.service.service
+    - name: Stop Firefox cache cleanup service if running
+      ansible.builtin.systemd:
+        name: firefox-cache-cleanup.service
         state: stopped
       ignore_errors: true
 
-    - name: Disable wrong service
-      systemd:
-        name: cache-clear-on-boot.service.service
+    - name: Disable Firefox cache cleanup service
+      ansible.builtin.systemd:
+        name: firefox-cache-cleanup.service
         enabled: false
       ignore_errors: true
 
-    - name: Remove wrong service file
-      file:
-        path: /etc/systemd/system/cache-clear-on-boot.service.service
+    - name: Remove Firefox cleanup script
+      ansible.builtin.file:
+        path: "{{ cleanup_script_path }}"
         state: absent
 
-    - name: Reload systemd daemon
-      command: systemctl daemon-reload
+    - name: Remove systemd service file
+      ansible.builtin.file:
+        path: "{{ systemd_service_path }}"
+        state: absent
+      notify: Reload systemd
+
+    - name: Show result
+      debug:
+        msg: "Firefox cache cleanup service and script removed successfully"
+
+  handlers:
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
