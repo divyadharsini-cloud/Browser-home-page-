@@ -1,6 +1,6 @@
 ---
 - name: Deploy Firefox cache cleanup on boot
-  hosts: DMDUPH2FCON0055, DMDUPH2FINJ0025, DMDUPH2FRET00065, DMDUPH2FUVE0315
+  hosts: Batch5
   become: true
   gather_facts: false
 
