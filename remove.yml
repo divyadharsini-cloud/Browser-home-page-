@@ -1,6 +1,6 @@
 ---
 - name: Remove Firefox cache cleanup service and script
-  hosts: Batch1
+  hosts: Batch2
   become: true
   gather_facts: false
 
