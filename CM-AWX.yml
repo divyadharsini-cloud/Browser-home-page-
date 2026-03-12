@@ -1,6 +1,6 @@
 ---
 - name: Configure client to report IP to AWX at boot
-  hosts: LPDYPH2FTHE0611  
+  hosts: Batch5  
 
   become: yes
 
