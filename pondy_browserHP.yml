@@ -1,6 +1,6 @@
 ---
 - name: Enforce Firefox Enterprise Policies (via /etc only)
-  hosts: DTNJPH3FWAR0098
+  hosts: DTNJPHGFUN20061
   become: yes
   gather_facts: no
 
