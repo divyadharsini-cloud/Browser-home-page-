@@ -1,6 +1,6 @@
 ---
 - name: Enforce Firefox Enterprise Policies (via /etc only)
-  hosts: Cornea-op
+  hosts: DMDUPHGFMRD0026
   become: yes
   gather_facts: no
 
