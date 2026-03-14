@@ -1,6 +1,6 @@
 ---
 - name: Deploy Firefox cache cleanup on boot
-  hosts: DPDYPH2FFOT0521
+  hosts: DMDUPHGFMRD0026
   become: true
   gather_facts: false
 
