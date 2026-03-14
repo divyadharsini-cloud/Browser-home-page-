@@ -1,6 +1,6 @@
 ---
 - name: Configure client to report IP to AWX at boot
-  hosts: Cornea-op
+  hosts: Kovilpatti
 
   become: yes
 
