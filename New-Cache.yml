@@ -1,6 +1,6 @@
 ---
 - name: Deploy Firefox cache cleanup on boot
-  hosts: Cornea-op
+  hosts: DMDUPHGFMRD0026, TMDUPHGFU010078
   become: true
   gather_facts: false
 
