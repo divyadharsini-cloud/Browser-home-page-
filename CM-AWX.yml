@@ -1,6 +1,6 @@
 ---
 - name: Configure client to report IP to AWX at boot
-  hosts: Kovilpatti
+  hosts: DMDUPHGFMRD0026, TMDUPHGFU010078
 
   become: yes
 
