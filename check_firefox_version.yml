@@ -1,6 +1,6 @@
 ---
 - name: Check Firefox version on all systems
-  hosts: Cornea-op
+  hosts: DMDUPHGFMRD0026, TMDUPHGFU010078
   become: yes
   gather_facts: no
 
