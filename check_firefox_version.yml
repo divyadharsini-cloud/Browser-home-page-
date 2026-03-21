@@ -1,6 +1,6 @@
 ---
 - name: Check Firefox version on all systems
-  hosts: DPDYPHGFUN10389, DPDYPHGFUN10017, DPDYPHGFU010022
+  hosts: Test-Batch1
   become: yes
   gather_facts: no
 
