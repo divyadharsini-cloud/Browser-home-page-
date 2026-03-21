@@ -1,6 +1,6 @@
 ---
 - name: Check Firefox version on all systems
-  hosts: DPDYPHGFU010015, DPDYPHGFU0100189, DPDYPHGFU010013
+  hosts: DPDYPHGFU020031, TPDYPHGFU030411, TPDYPHGFU020409, DPDYPHGFU030455, DPDYPHGFU020035
   become: yes
   gather_facts: no
 
