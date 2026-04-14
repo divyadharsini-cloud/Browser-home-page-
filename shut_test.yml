@@ -1,0 +1,24 @@
+- name: Schedule Shutdown at Specific Time
+  hosts: ansibletesting
+  become: yes
+  gather_facts: no
+
+  vars:
+    shutdown_time: "17:25"   # 👈 change this for testing
+
+  tasks:
+
+    - name: Show scheduled shutdown time
+      debug:
+        msg: "System will shutdown at {{ shutdown_time }}"
+
+    - name: Check shutdown command exists
+      command: which shutdown
+      register: shutdown_check
+      failed_when: shutdown_check.rc != 0
+
+    - name: Warn users about shutdown
+      shell: wall "System will shutdown at {{ shutdown_time }}. Please save your work."
+
+    - name: Schedule shutdown
+      command: "shutdown -h {{ shutdown_time }}"
