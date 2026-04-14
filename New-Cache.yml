@@ -1,6 +1,6 @@
 ---
 - name: Deploy Firefox cache cleanup on boot
-  hosts: TTPTPH2FRET0167, DTPTPH2FRET0172
+  hosts: Batch5
   become: true
   gather_facts: false
 
