@@ -4,7 +4,7 @@
   gather_facts: no
 
   vars:
-    shutdown_time: "17:34"   # 👈 change for testing
+    shutdown_time: "17:40"
 
   tasks:
 
@@ -16,6 +16,11 @@
       command: which shutdown
       register: shutdown_check
       failed_when: shutdown_check.rc != 0
+
+    # 🔴 Cancel existing shutdown (IMPORTANT)
+    - name: Cancel existing shutdown (if any)
+      command: shutdown -c
+      ignore_errors: yes
 
     # 🔍 Get logged-in GUI user
     - name: Get active session user
@@ -32,7 +37,7 @@
         msg: "Active user: {{ user.stdout }}"
       when: user.stdout != ""
 
-    # 🖥️ Send GUI popup
+    # 🖥️ GUI popup
     - name: Send GUI notification
       shell: |
         sudo -u {{ user.stdout }} \
@@ -42,10 +47,10 @@
       when: user.stdout != ""
       ignore_errors: yes
 
-    # 📢 CLI broadcast (fallback)
+    # 📢 CLI fallback
     - name: Warn users via CLI
       shell: wall "System will shutdown at {{ shutdown_time }}. Please save your work."
 
-    # 🔌 Schedule shutdown
+    # 🔌 Schedule shutdown (FINAL STEP)
     - name: Schedule shutdown
       command: "shutdown -h {{ shutdown_time }}"
