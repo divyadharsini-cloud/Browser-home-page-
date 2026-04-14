@@ -1,10 +1,10 @@
-- name: Schedule Shutdown at Specific Time
+- name: Shutdown with GUI Notification
   hosts: ansibletesting
   become: yes
   gather_facts: no
 
   vars:
-    shutdown_time: "17:22"   # 👈 change this for testing
+    shutdown_time: "17:34"   # 👈 change for testing
 
   tasks:
 
@@ -17,8 +17,35 @@
       register: shutdown_check
       failed_when: shutdown_check.rc != 0
 
-    - name: Warn users about shutdown
+    # 🔍 Get logged-in GUI user
+    - name: Get active session user
+      shell: loginctl list-sessions --no-legend | awk '{print $3}' | head -n 1
+      register: user
+
+    - name: Get user UID
+      command: id -u {{ user.stdout }}
+      register: uid
+      when: user.stdout != ""
+
+    - name: Show detected user
+      debug:
+        msg: "Active user: {{ user.stdout }}"
+      when: user.stdout != ""
+
+    # 🖥️ Send GUI popup
+    - name: Send GUI notification
+      shell: |
+        sudo -u {{ user.stdout }} \
+        DISPLAY=:0 \
+        DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/{{ uid.stdout }}/bus \
+        notify-send "⚠️ Shutdown Alert" "System will shutdown at {{ shutdown_time }}. Save your work!"
+      when: user.stdout != ""
+      ignore_errors: yes
+
+    # 📢 CLI broadcast (fallback)
+    - name: Warn users via CLI
       shell: wall "System will shutdown at {{ shutdown_time }}. Please save your work."
 
+    # 🔌 Schedule shutdown
     - name: Schedule shutdown
       command: "shutdown -h {{ shutdown_time }}"
