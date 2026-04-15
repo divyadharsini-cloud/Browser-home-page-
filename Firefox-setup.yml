@@ -5,7 +5,7 @@
 
   vars:
     firefox_version: "117.0"
-    firefox_url: "http://172.30.1.125/firefox/releases/117.0/linux-x86_64/en-US/firefox-117.0.tar.bz2"
+    firefox_url: "http://172.17.9.58/firefox/releases/117.0/linux-x86_64/en-US/firefox-117.0.tar.bz2"
     download_path: "/tmp/firefox-117.0.tar.bz2"
     install_dir: "/opt/firefox117"
     firefox_binary: "/opt/firefox117/firefox/firefox"
