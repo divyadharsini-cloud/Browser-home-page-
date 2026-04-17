@@ -43,19 +43,84 @@
               "PasswordManagerEnabled": false,
               "DisableFirefoxAccounts": true,
               "BlockAboutAddons": true,
+
               "Homepage": {
                 "Locked": true,
                 "URL": "https://eyenotes.aravind.org/eyenotes"
               },
+
               "PopupBlocking": {
                 "Default": false,
                 "Locked": true
               },
+
               "SanitizeOnShutdown": {
                 "Cache": true
               },
+
+              "DisableSystemAddonUpdate": true,
+              "DisableProfileImport": true,
+              "DisableProfileRefresh": true,
+
+              "FirefoxHome": {
+                "Search": true,
+                "TopSites": false,
+                "SponsoredTopSites": false,
+                "Highlights": false,
+                "Pocket": false,
+                "SponsoredPocket": false,
+                "Snippets": false,
+                "Locked": true
+              },
+
+              "ExtensionSettings": {
+                "*": {
+                  "installation_mode": "blocked"
+                }
+              },
+
               "Preferences": {
                 "signon.rememberSignons": {
+                  "Value": false,
+                  "Status": "locked"
+                },
+
+                "browser.uiCustomization.state": {
+                  "Value": "",
+                  "Status": "locked"
+                },
+
+                "extensions.update.enabled": {
+                  "Value": false,
+                  "Status": "locked"
+                },
+
+                "app.update.enabled": {
+                  "Value": false,
+                  "Status": "locked"
+                },
+
+                "app.update.auto": {
+                  "Value": false,
+                  "Status": "locked"
+                },
+
+                "app.normandy.enabled": {
+                  "Value": false,
+                  "Status": "locked"
+                },
+
+                "app.shield.optoutstudies.enabled": {
+                  "Value": false,
+                  "Status": "locked"
+                },
+
+                "toolkit.telemetry.enabled": {
+                  "Value": false,
+                  "Status": "locked"
+                },
+
+                "browser.newtabpage.enabled": {
                   "Value": false,
                   "Status": "locked"
                 }
