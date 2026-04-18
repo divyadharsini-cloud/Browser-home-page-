@@ -1,6 +1,6 @@
 ---
 - name: Enforce Firefox Enterprise Policies (via /etc only)
-  hosts: TMDULB3FAUROZAB
+  hosts: Test-Batch1
   become: yes
   gather_facts: no
 
