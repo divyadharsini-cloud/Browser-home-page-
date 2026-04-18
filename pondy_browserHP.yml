@@ -1,6 +1,6 @@
 ---
 - name: Enforce Firefox Enterprise Policies (via /etc only)
-  hosts: ansibletesting
+  hosts: TMDULB3FAUROZAB
   become: yes
   gather_facts: no
 
