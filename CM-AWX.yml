@@ -1,6 +1,6 @@
 ---
 - name: Configure client to report IP to AWX at boot
-  hosts: DPDYPH1FUVA0656
+  hosts: DTNJPHGFCOU0188, DTNJPH1FRET0153, DTNJPHGFADM0137, DTNJPHGFADM0132, DTNJPHGFUN20141, DTNJFHGFINV0154
   become: yes
 
   vars:
