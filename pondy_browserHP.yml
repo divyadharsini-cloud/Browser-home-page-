@@ -1,6 +1,6 @@
 ---
 - name: Enforce Firefox Enterprise Policies (via /etc only)
-  hosts: IP
+  hosts: Glaucoma-OP
   become: yes
   gather_facts: no
 
