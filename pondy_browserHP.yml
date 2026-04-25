@@ -1,6 +1,6 @@
 ---
 - name: Enforce Firefox Enterprise Policies (via /etc only)
-  hosts: SNKL-1
+  hosts: Kovilpatti
   become: yes
   gather_facts: no
 
