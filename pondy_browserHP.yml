@@ -1,6 +1,6 @@
 ---
 - name: Enforce Firefox Enterprise Policies (via /etc only)
-  hosts: Tirumangalam
+  hosts: linux_servers
   become: yes
   gather_facts: no
 
