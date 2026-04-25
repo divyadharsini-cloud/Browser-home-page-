@@ -1,6 +1,6 @@
 ---
 - name: Deploy Firefox cache cleanup on boot
-  hosts: DTNJPHGFCOU0188, DTNJPH1FRET0153, DTNJPHGFADM0137, DTNJPHGFADM0132, DTNJPHGFUN20141, DTNJFHGFINV0154
+  hosts: SNKL-1
   become: true
   gather_facts: false
 
