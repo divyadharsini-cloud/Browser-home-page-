@@ -1,6 +1,6 @@
 ---
 - name: Deploy Firefox cache cleanup on boot
-  hosts: SNKL-1
+  hosts: Kovilpatti
   become: true
   gather_facts: false
 
