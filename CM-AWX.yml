@@ -1,6 +1,6 @@
 ---
 - name: Configure client to report IP to AWX at boot
-  hosts: SNKL-1
+  hosts: Kovilpatti
   become: yes
 
   vars:
