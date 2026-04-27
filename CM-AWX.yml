@@ -1,6 +1,6 @@
 ---
 - name: Configure client to report IP to AWX at boot
-  hosts: TUT-1
+  hosts: FH-1
   become: yes
 
   vars:
