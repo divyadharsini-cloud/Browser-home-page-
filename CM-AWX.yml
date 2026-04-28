@@ -1,6 +1,6 @@
 ---
 - name: Configure client to report IP to AWX at boot
-  hosts: Unit-1-4
+  hosts: Unit-2-3
   become: yes
 
   vars:
