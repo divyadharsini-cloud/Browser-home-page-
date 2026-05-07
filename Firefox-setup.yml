@@ -1,6 +1,6 @@
 ---
 - name: Install Firefox 117 from offline mirror
-  hosts: NM
+  hosts: DPDYPH1FGLA0637, DPDYPH1FGLA0661, DPDYPH1FGLA0664, DPDYPH1FGLA0662, DPDYPH1FGLA0663
   become: yes
 
   vars:
