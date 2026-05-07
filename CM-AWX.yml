@@ -1,6 +1,6 @@
 ---
 - name: Configure client to report IP to AWX at boot
-  hosts: DTNJPH1FGLA0149, DTNJPH1FGLA0167, DTNJPH1FGLA0143
+  hosts: Batch-1
   become: yes
 
   vars:
