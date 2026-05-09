@@ -1,6 +1,6 @@
 ---
 - name: Configure client to report IP to AWX at boot
-  hosts: Glaucoma
+  hosts: IOL
   become: yes
 
   vars:
