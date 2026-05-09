@@ -1,6 +1,6 @@
 ---
 - name: Deploy Firefox cache cleanup on boot
-  hosts: Glaucoma
+  hosts: IOL
   become: true
   gather_facts: false
 
