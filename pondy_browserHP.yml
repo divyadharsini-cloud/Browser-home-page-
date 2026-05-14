@@ -1,6 +1,6 @@
 ---
 - name: Enforce Firefox Enterprise Policies (via /etc only)
-  hosts: Others
+  hosts: UDP
   become: yes
   gather_facts: no
 
