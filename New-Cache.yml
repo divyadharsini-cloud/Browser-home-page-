@@ -1,6 +1,6 @@
 ---
 - name: Deploy Firefox cache cleanup on boot
-  hosts: Others
+  hosts: UDP
   become: true
   gather_facts: false
 
