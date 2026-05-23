@@ -1,0 +1,267 @@
+---
+- name: Configure AWX reporting + Firefox cache cleanup + Firefox policies
+  hosts:
+    - DPDYPH1FRET0698
+    - DPDYPH1FCOR0704
+    - DPDYPH1FCOR0700
+    - DPDYPH1FCOR0701
+    - DPDYPH1FCOR0705
+    - DPDYPH1FCOR0702
+    - DPDYPH1FRET0694
+
+  become: yes
+  gather_facts: false
+
+  vars:
+    awx_server: "https://awx.aravind.org"
+    awx_user: "divya"
+    awx_pass: "Divya@123"
+
+    cleanup_script: /usr/local/bin/clear_cache.sh
+    cleanup_log: /var/log/cache_cleanup.log
+
+  tasks:
+
+##################################################
+# AWX IP REPORTING
+##################################################
+
+    - name: Create AWX IP reporting script
+      copy:
+        dest: /usr/local/bin/report_ip_to_awx.sh
+        mode: '0755'
+        content: |
+          #!/bin/bash
+
+          AWX_SERVER="{{ awx_server }}"
+          AWX_USER="{{ awx_user }}"
+          AWX_PASS="{{ awx_pass }}"
+
+          HOSTNAME=$(hostname)
+          IP=$(hostname -I | awk '{print $1}')
+
+          HOST_ID=$(curl -sk \
+            -u "$AWX_USER:$AWX_PASS" \
+            "$AWX_SERVER/api/v2/hosts/?name=$HOSTNAME" \
+            | grep -o '"id":[0-9]*' \
+            | head -1 \
+            | cut -d: -f2)
+
+          [ -z "$HOST_ID" ] && exit 1
+
+          curl -sk \
+          -u "$AWX_USER:$AWX_PASS" \
+          -X PATCH \
+          "$AWX_SERVER/api/v2/hosts/$HOST_ID/" \
+          -H "Content-Type: application/json" \
+          -d "{\"variables\":\"ansible_host: $IP\"}"
+
+    - name: Create AWX reporting service
+      copy:
+        dest: /etc/systemd/system/report-ip-awx.service
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Report IP to AWX
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/local/bin/report_ip_to_awx.sh
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: reload systemd
+
+
+##################################################
+# FIREFOX CACHE CLEANUP
+##################################################
+
+    - name: Create cache cleanup script
+      copy:
+        dest: "{{ cleanup_script }}"
+        mode: '0755'
+        content: |
+          #!/bin/bash
+
+          LOG="{{ cleanup_log }}"
+
+          for user_home in /home/*; do
+
+            profile="$user_home/.cache/mozilla/firefox"
+
+            [ -d "$profile" ] || continue
+
+            find "$profile" \
+            -type d \
+            -name cache2 \
+            -exec rm -rf {}/* \; \
+            2>/dev/null
+
+          done
+
+          echo "$(date): Cache cleared" >> "$LOG"
+
+    - name: Create cache cleanup service
+      copy:
+        dest: /etc/systemd/system/cache-clear-on-boot.service
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Firefox Cache Cleanup
+          After=multi-user.target
+
+          [Service]
+          Type=oneshot
+          ExecStart={{ cleanup_script }}
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: reload systemd
+
+
+##################################################
+# FIREFOX POLICIES
+##################################################
+
+    - name: Ensure Firefox directories exist
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - /etc/firefox
+        - /etc/firefox/policies
+
+    - name: Backup existing policies
+      copy:
+        src: /etc/firefox/policies/policies.json
+        dest: /etc/firefox/policies/policies.json.bak
+        remote_src: yes
+      ignore_errors: yes
+
+    - name: Deploy Firefox policies
+      copy:
+        dest: /etc/firefox/policies/policies.json
+        mode: '0644'
+        content: |
+          {
+            "policies": {
+
+              "DisableAppUpdate": true,
+              "DisablePasswordManager": true,
+              "PasswordManagerEnabled": false,
+              "DisableFirefoxAccounts": true,
+              "BlockAboutAddons": true,
+
+              "Homepage": {
+                "Locked": true,
+                "URL": "https://eyenotes.aravind.org/eyenotes"
+              },
+
+              "PopupBlocking": {
+                "Default": false,
+                "Locked": true
+              },
+
+              "SanitizeOnShutdown": {
+                "Cache": true
+              },
+
+              "DisableSystemAddonUpdate": true,
+              "DisableProfileImport": true,
+              "DisableProfileRefresh": true,
+
+              "FirefoxHome": {
+
+                "Search": true,
+                "TopSites": false,
+                "Highlights": false,
+                "Pocket": false,
+                "Locked": true
+
+              },
+
+              "ExtensionSettings": {
+
+                "*": {
+                  "installation_mode": "blocked"
+                }
+
+              },
+
+              "Preferences": {
+
+                "extensions.update.enabled": {
+                  "Value": false,
+                  "Status": "locked"
+                },
+
+                "app.update.enabled": {
+                  "Value": false,
+                  "Status": "locked"
+                },
+
+                "toolkit.telemetry.enabled": {
+                  "Value": false,
+                  "Status": "locked"
+                },
+
+                "browser.newtabpage.enabled": {
+                  "Value": false,
+                  "Status": "locked"
+                }
+
+              }
+
+            }
+
+          }
+
+
+##################################################
+# ENABLE SERVICES
+##################################################
+
+    - name: Enable AWX service
+      systemd:
+        name: report-ip-awx.service
+        enabled: yes
+        state: started
+
+    - name: Enable cache cleanup service
+      systemd:
+        name: cache-clear-on-boot.service
+        enabled: yes
+        state: started
+
+    - name: Run cache cleanup once immediately
+      command: "{{ cleanup_script }}"
+      changed_when: false
+
+    - name: Read cleanup logs
+      shell: tail -5 {{ cleanup_log }}
+      register: cache_log
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Display summary
+      debug:
+        msg:
+          - "AWX reporting enabled"
+          - "Firefox cache cleanup enabled"
+          - "Firefox policies deployed"
+          - "{{ cache_log.stdout_lines | default([]) }}"
+
+
+##################################################
+# HANDLERS
+##################################################
+
+  handlers:
+
+    - name: reload systemd
+      systemd:
+        daemon_reload: yes
