@@ -1,6 +1,6 @@
 ---
 - name: Configure AWX reporting + Firefox cache cleanup + Firefox policies
-  hosts: UN-1, UN-2
+  hosts: IOL
   become: yes
   gather_facts: false
 
