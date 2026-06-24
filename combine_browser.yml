@@ -1,6 +1,6 @@
 ---
 - name: Configure AWX reporting + Firefox cache cleanup + Firefox policies
-  hosts: old, new
+  hosts: PAE
   become: yes
   gather_facts: false
 
