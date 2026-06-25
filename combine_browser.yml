@@ -1,6 +1,6 @@
 ---
 - name: Configure AWX reporting + Firefox cache cleanup + Firefox policies
-  hosts: DSLMPH1FRETMRD1
+  hosts: DSLMPHGFIOLREF2
   become: yes
   gather_facts: false
 
