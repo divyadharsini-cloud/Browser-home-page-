@@ -1,6 +1,6 @@
 ---
 - name: Configure AWX reporting + Firefox cache cleanup + Firefox policies
-  hosts: DSLMPHGFIOLREF2
+  hosts: DGL
   become: yes
   gather_facts: false
 
