@@ -1,0 +1,23 @@
+---
+- name: Check CrowdStrike Falcon Sensor Status
+  hosts: old, new
+  become: yes
+  gather_facts: no
+
+  tasks:
+
+    - name: Check Falcon Sensor service
+      command: systemctl is-active falcon-sensor
+      register: sensor_state
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Display sensor status
+      debug:
+        msg: "CrowdStrike Sensor Status: {{ sensor_state.stdout }}"
+      when: sensor_state.rc == 0
+
+    - name: Display sensor not installed
+      debug:
+        msg: "CrowdStrike Sensor is NOT installed."
+      when: sensor_state.rc != 0
