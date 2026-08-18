@@ -1,0 +1,164 @@
+---
+- name: Push PDF to Desktop of all Linux users including root
+  hosts: ansibletesting
+  become: yes
+  gather_facts: no
+
+  vars:
+    # PDF file uploaded in the AWX project
+    pdf_file: "Adv1+-+What+is+a+software.pdf"
+
+  tasks:
+
+    # ============================================================
+    # 1. Get all normal Linux users
+    #    UID >= 1000 and UID < 65534
+    # ============================================================
+    - name: Get all normal Linux users
+      ansible.builtin.shell: |
+        getent passwd | awk -F: '$3 >= 1000 && $3 < 65534 {print $1 "|" $6}'
+      register: normal_users
+      changed_when: false
+
+    # ============================================================
+    # 2. Display the users detected
+    # ============================================================
+    - name: Display normal Linux users
+      ansible.builtin.debug:
+        msg: "User detected: {{ item.split('|')[0] }} | Home: {{ item.split('|')[1] }}"
+      loop: "{{ normal_users.stdout_lines }}"
+      when:
+        - item is not none
+        - item | length > 0
+
+    # ============================================================
+    # 3. Check whether each user's Desktop directory exists
+    #    We DO NOT create the directory.
+    # ============================================================
+    - name: Check normal users Desktop directories
+      ansible.builtin.stat:
+        path: "{{ item.split('|')[1] }}/Desktop"
+      register: user_desktop_directories
+      loop: "{{ normal_users.stdout_lines }}"
+      when:
+        - item is not none
+        - item | length > 0
+
+    # ============================================================
+    # 4. Copy PDF to every normal user's Desktop
+    # ============================================================
+    - name: Copy PDF to normal users Desktop
+      ansible.builtin.copy:
+        src: "{{ pdf_file }}"
+        dest: "{{ item.item.split('|')[1] }}/Desktop/{{ pdf_file }}"
+        owner: "{{ item.item.split('|')[0] }}"
+        group: "{{ item.item.split('|')[0] }}"
+        mode: "0644"
+      loop: "{{ user_desktop_directories.results }}"
+      when:
+        - item.stat.exists | default(false)
+        - item.stat.isdir | default(false)
+
+    # ============================================================
+    # 5. Report users whose Desktop directory does not exist
+    # ============================================================
+    - name: Report users without Desktop directory
+      ansible.builtin.debug:
+        msg: >-
+          Desktop directory does not exist for user
+          {{ item.item.split('|')[0] }}
+          at {{ item.item.split('|')[1] }}/Desktop.
+          PDF was NOT copied for this user.
+      loop: "{{ user_desktop_directories.results }}"
+      when:
+        - not (item.stat.exists | default(false))
+
+    # ============================================================
+    # 6. Check root Desktop directory
+    #    We DO NOT create /root/Desktop.
+    # ============================================================
+    - name: Check root Desktop directory
+      ansible.builtin.stat:
+        path: "/root/Desktop"
+      register: root_desktop
+
+    # ============================================================
+    # 7. Copy PDF to root Desktop
+    # ============================================================
+    - name: Copy PDF to root Desktop
+      ansible.builtin.copy:
+        src: "{{ pdf_file }}"
+        dest: "/root/Desktop/{{ pdf_file }}"
+        owner: root
+        group: root
+        mode: "0644"
+      when:
+        - root_desktop.stat.exists
+        - root_desktop.stat.isdir
+
+    # ============================================================
+    # 8. Report if root Desktop does not exist
+    # ============================================================
+    - name: Report if root Desktop does not exist
+      ansible.builtin.debug:
+        msg: >-
+          /root/Desktop does not exist.
+          PDF was NOT copied to root Desktop.
+      when:
+        - not root_desktop.stat.exists or not root_desktop.stat.isdir
+
+    # ============================================================
+    # 9. Verify PDF for normal users
+    # ============================================================
+    - name: Verify PDF exists for normal users
+      ansible.builtin.stat:
+        path: "{{ item.item.split('|')[1] }}/Desktop/{{ pdf_file }}"
+      register: user_pdf_verification
+      loop: "{{ user_desktop_directories.results }}"
+      when:
+        - item.stat.exists | default(false)
+        - item.stat.isdir | default(false)
+
+    # ============================================================
+    # 10. Display normal user verification result
+    # ============================================================
+    - name: Display normal user PDF verification
+      ansible.builtin.debug:
+        msg: >-
+          User {{ item.item.item.split('|')[0] }}:
+          PDF exists = {{ item.stat.exists | default(false) }}
+      loop: "{{ user_pdf_verification.results }}"
+      when:
+        - item.stat is defined
+
+    # ============================================================
+    # 11. Verify PDF exists on root Desktop
+    # ============================================================
+    - name: Verify PDF exists on root Desktop
+      ansible.builtin.stat:
+        path: "/root/Desktop/{{ pdf_file }}"
+      register: root_pdf_verification
+      when:
+        - root_desktop.stat.exists
+        - root_desktop.stat.isdir
+
+    # ============================================================
+    # 12. Display root verification result
+    # ============================================================
+    - name: Display root PDF verification
+      ansible.builtin.debug:
+        msg: >-
+          Root user:
+          PDF exists = {{ root_pdf_verification.stat.exists | default(false) }}
+      when:
+        - root_pdf_verification.stat is defined
+
+    # ============================================================
+    # 13. Final deployment message
+    # ============================================================
+    - name: Deployment completed
+      ansible.builtin.debug:
+        msg: >-
+          PDF deployment completed.
+          The PDF was copied to existing Desktop directories
+          for all detected normal users and root.
