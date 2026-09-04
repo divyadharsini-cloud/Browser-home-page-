@@ -1,6 +1,6 @@
 ---
 - name: Configure AWX reporting + Firefox cache cleanup + Firefox policies
-  hosts: DTNJPHGFUN10134
+  hosts: DTNJPHGFUN20191, DTNJPH2FWAR0135, DTNJPH2FWAR0194, DTNJPH2FWAR0144, DTNJPH2FWAR0158, DTNJPH2FMRD0136 
   become: yes
   gather_facts: false
 
