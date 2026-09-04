@@ -1,11 +1,11 @@
 ---
 - name: Install Firefox 117 from offline mirror
-  hosts: DKVPFHGFCOU0015
+  hosts: DTNJPHGFUN20191, DTNJPH2FWAR0135, DTNJPH2FWAR0194, DTNJPH2FWAR0144, DTNJPH2FWAR0158, DTNJPH2FMRD0136 
   become: yes
 
   vars:
     firefox_version: "117.0"
-    firefox_url: "http://172.19.1.120/firefox/releases/117.0/linux-x86_64/en-US/firefox-117.0.tar.bz2"
+    firefox_url: "http://172.31.4.25/firefox/releases/117.0/linux-x86_64/en-US/firefox-117.0.tar.bz2"
     download_path: "/tmp/firefox-117.0.tar.bz2"
     install_dir: "/opt/firefox117"
     firefox_binary: "/opt/firefox117/firefox/firefox"
