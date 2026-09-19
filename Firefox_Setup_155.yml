@@ -1,0 +1,103 @@
+---
+- name: Install Firefox 155 from offline mirror
+  hosts: ansibletesting
+  become: yes
+
+  vars:
+    firefox_version: "155.0"
+    firefox_url: "http://172.21.1.3/firefox/releases/155.0/linux-x86_64/en-US/firefox-155.0.tar.bz2"
+    download_path: "/tmp/firefox-155.0.tar.bz2"
+    install_dir: "/opt/firefox155"
+    firefox_binary: "/opt/firefox155/firefox/firefox"
+
+  tasks:
+
+  # ---------------------------------
+  # Kill running Firefox
+  # ---------------------------------
+  - name: Kill running Firefox
+    ansible.builtin.shell: pkill -f firefox
+    failed_when: false
+    changed_when: false
+
+  # ---------------------------------
+  # Remove package versions
+  # ---------------------------------
+  - name: Remove APT Firefox packages
+    ansible.builtin.apt:
+      name:
+        - firefox
+        - firefox-esr
+      state: absent
+      purge: yes
+    ignore_errors: yes
+
+  # ---------------------------------
+  # Remove old install directory
+  # ---------------------------------
+  - name: Remove old Firefox directory
+    ansible.builtin.file:
+      path: "{{ install_dir }}"
+      state: absent
+
+  # ---------------------------------
+  # Download Firefox 117
+  # ---------------------------------
+  - name: Download Firefox 117
+    ansible.builtin.get_url:
+      url: "{{ firefox_url }}"
+      dest: "{{ download_path }}"
+      mode: '0644'
+
+  # ---------------------------------
+  # Create install directory
+  # ---------------------------------
+  - name: Create install directory
+    ansible.builtin.file:
+      path: "{{ install_dir }}"
+      state: directory
+      mode: '0755'
+
+  # ---------------------------------
+  # Extract Firefox
+  # ---------------------------------
+  - name: Extract Firefox
+    ansible.builtin.unarchive:
+      src: "{{ download_path }}"
+      dest: "{{ install_dir }}"
+      remote_src: yes
+
+  # ---------------------------------
+  # Create system binary link
+  # ---------------------------------
+  - name: Create /usr/bin/firefox symlink
+    ansible.builtin.file:
+      src: "{{ firefox_binary }}"
+      dest: /usr/bin/firefox
+      state: link
+      force: yes
+
+  # ---------------------------------
+  # Create application launcher
+  # ---------------------------------
+  - name: Create Firefox desktop launcher
+    ansible.builtin.copy:
+      dest: /usr/share/applications/firefox.desktop
+      mode: '0644'
+      content: |
+        [Desktop Entry]
+        Name=Firefox
+        Comment=Web Browser
+        Exec={{ firefox_binary }} %u
+        Icon={{ install_dir }}/firefox/browser/chrome/icons/default/default128.png
+        Terminal=false
+        Type=Application
+        Categories=Network;WebBrowser;
+
+  # ---------------------------------
+  # Remove installer
+  # ---------------------------------
+  - name: Remove installer archive
+    ansible.builtin.file:
+      path: "{{ download_path }}"
+      state: absent
