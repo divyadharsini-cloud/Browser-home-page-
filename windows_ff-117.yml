@@ -1,17 +1,92 @@
 
 ---
-- name: Uninstall Firefox from Windows
+- name: Completely uninstall Firefox from Windows
   hosts: DMDULB1FTR00030
   gather_facts: false
 
   tasks:
 
-    - name: Uninstall Firefox
-      ansible.windows.win_command: >-
-        "C:\Program Files\Mozilla Firefox\uninstall\helper.exe" /S
+    - name: Stop Firefox
+      ansible.windows.win_command: taskkill.exe /F /IM firefox.exe
       failed_when: false
+      changed_when: false
 
-    - name: Uninstall Firefox 32-bit
-      ansible.windows.win_command: >-
-        "C:\Program Files (x86)\Mozilla Firefox\uninstall\helper.exe" /S
-      failed_when: false
+    - name: Find and uninstall Firefox
+      ansible.windows.win_powershell:
+        script: |
+          $paths = @(
+            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*"
+          )
+
+          $apps = Get-ItemProperty $paths -ErrorAction SilentlyContinue |
+            Where-Object {
+              $_.DisplayName -like "Mozilla Firefox*"
+            }
+
+          if (-not $apps) {
+            Write-Output "Firefox is not installed."
+            exit 0
+          }
+
+          foreach ($app in $apps) {
+            $uninstall = $app.QuietUninstallString
+
+            if ([string]::IsNullOrWhiteSpace($uninstall)) {
+              $uninstall = $app.UninstallString
+            }
+
+            if ([string]::IsNullOrWhiteSpace($uninstall)) {
+              Write-Output "No uninstall command found for $($app.DisplayName)"
+              continue
+            }
+
+            Write-Output "Uninstalling: $($app.DisplayName)"
+            Write-Output "Command: $uninstall"
+
+            if ($uninstall -match '^\s*"([^"]+)"\s*(.*)$') {
+              $exe = $Matches[1]
+              $args = $Matches[2]
+            } elseif ($uninstall -match '^\s*(\S+)\s*(.*)$') {
+              $exe = $Matches[1]
+              $args = $Matches[2]
+            } else {
+              Write-Output "Unable to parse uninstall command."
+              continue
+            }
+
+            if ($args -notmatch '(?i)(^|\s)/S(\s|$)') {
+              $args = "$args /S"
+            }
+
+            $process = Start-Process `
+              -FilePath $exe `
+              -ArgumentList $args `
+              -Wait `
+              -PassThru
+
+            Write-Output "Uninstaller exit code: $($process.ExitCode)"
+          }
+
+    - name: Verify Firefox installation
+      ansible.windows.win_powershell:
+        script: |
+          $paths = @(
+            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*",
+            "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*"
+          )
+
+          $apps = Get-ItemProperty $paths -ErrorAction SilentlyContinue |
+            Where-Object {
+              $_.DisplayName -like "Mozilla Firefox*"
+            }
+
+          if ($apps) {
+            Write-Output "Firefox is still installed."
+            $apps | Select-Object DisplayName, DisplayVersion
+            throw "Firefox uninstall verification failed."
+          } else {
+            Write-Output "Firefox has been uninstalled successfully."
+          }
