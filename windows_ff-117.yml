@@ -5,20 +5,14 @@
 
   tasks:
 
-    - name: Stop Firefox if running
-      ansible.windows.win_powershell:
-        script: |
-          $firefox = Get-Process -Name "firefox" -ErrorAction SilentlyContinue
+    - name: Close all Firefox processes
+      ansible.windows.win_shell: |
+        taskkill.exe /F /IM firefox.exe /T 2>$null
+        exit 0
+      args:
+        executable: powershell.exe
 
-          if ($firefox) {
-              $firefox | Stop-Process -Force
-              Write-Output "Firefox process stopped."
-          }
-          else {
-              Write-Output "Firefox is not running."
-          }
-
-    - name: Check Firefox installation
+    - name: Uninstall Firefox
       ansible.windows.win_powershell:
         script: |
           $paths = @(
@@ -33,9 +27,60 @@
               Select-Object -First 1
 
           if ($firefox) {
-              Write-Output "Firefox found: $($firefox.DisplayName)"
-              Write-Output "Uninstall command: $($firefox.UninstallString)"
+
+              $uninstallCommand = $firefox.QuietUninstallString
+
+              if ([string]::IsNullOrWhiteSpace($uninstallCommand)) {
+                  $uninstallCommand = $firefox.UninstallString
+              }
+
+              if ($uninstallCommand -match '^"([^"]+)"(.*)$') {
+                  $filePath = $matches[1]
+                  $arguments = $matches[2].Trim()
+              }
+              else {
+                  $parts = $uninstallCommand -split '\s+', 2
+                  $filePath = $parts[0]
+                  $arguments = if ($parts.Count -gt 1) {
+                      $parts[1]
+                  } else {
+                      ""
+                  }
+              }
+
+              if ($arguments -notmatch "/S") {
+                  $arguments = "$arguments /S"
+              }
+
+              Write-Output "Uninstalling Firefox..."
+
+              Start-Process `
+                  -FilePath $filePath `
+                  -ArgumentList $arguments `
+                  -Wait
+
+              Write-Output "Firefox uninstall command completed."
           }
           else {
               Write-Output "Firefox is not installed."
+          }
+
+    - name: Verify Firefox is uninstalled
+      ansible.windows.win_powershell:
+        script: |
+          $paths = @(
+              "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+              "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+          )
+
+          $firefox = Get-ItemProperty $paths -ErrorAction SilentlyContinue |
+              Where-Object {
+                  $_.DisplayName -like "*Mozilla Firefox*"
+              }
+
+          if ($firefox) {
+              Write-Output "Firefox is still installed."
+          }
+          else {
+              Write-Output "Firefox is uninstalled successfully."
           }
