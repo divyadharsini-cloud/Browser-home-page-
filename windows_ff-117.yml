@@ -4,27 +4,38 @@
   gather_facts: false
 
   tasks:
-    - name: Stop Firefox
-      ansible.windows.win_shell: |
-        Stop-Process -Name firefox -Force -ErrorAction SilentlyContinue
 
-    - name: Uninstall Firefox
-      ansible.windows.win_shell: |
-        $apps = Get-ItemProperty `
-          "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
-          "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*" `
-          -ErrorAction SilentlyContinue |
-          Where-Object { $_.DisplayName -like "*Mozilla Firefox*" }
+    - name: Stop Firefox if running
+      ansible.windows.win_powershell:
+        script: |
+          $firefox = Get-Process -Name "firefox" -ErrorAction SilentlyContinue
 
-        foreach ($app in $apps) {
-            if ($app.UninstallString) {
-                Start-Process `
-                  -FilePath "cmd.exe" `
-                  -ArgumentList "/c", "$($app.UninstallString) /S" `
-                  -Wait
-            }
-        }
+          if ($firefox) {
+              $firefox | Stop-Process -Force
+              Write-Output "Firefox process stopped."
+          }
+          else {
+              Write-Output "Firefox is not running."
+          }
 
-        Write-Output "Firefox uninstall command completed."
-      args:
-        executable: powershell.exe
+    - name: Check Firefox installation
+      ansible.windows.win_powershell:
+        script: |
+          $paths = @(
+              "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+              "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+          )
+
+          $firefox = Get-ItemProperty $paths -ErrorAction SilentlyContinue |
+              Where-Object {
+                  $_.DisplayName -like "*Mozilla Firefox*"
+              } |
+              Select-Object -First 1
+
+          if ($firefox) {
+              Write-Output "Firefox found: $($firefox.DisplayName)"
+              Write-Output "Uninstall command: $($firefox.UninstallString)"
+          }
+          else {
+              Write-Output "Firefox is not installed."
+          }
