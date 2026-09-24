@@ -1,0 +1,48 @@
+
+---
+- name: Install Firefox 117 on Windows from offline mirror
+  hosts: DMDULB1FTR00030
+  gather_facts: false
+
+  vars:
+    firefox_version: "117.0"
+
+    # Replace with the actual Windows installer URL
+    firefox_url: "http://172.17.9.58/firefox/releases/117.0/win64/Firefox Setup 117.0.exe"
+
+    download_path: 'C:\Windows\Temp\FirefoxSetup117.exe'
+
+  tasks:
+
+    # ---------------------------------
+    # Kill running Firefox
+    # ---------------------------------
+    - name: Kill running Firefox
+      ansible.windows.win_shell: |
+        Stop-Process -Name firefox -Force -ErrorAction SilentlyContinue
+      changed_when: false
+
+    # ---------------------------------
+    # Download Firefox 117 Windows installer
+    # ---------------------------------
+    - name: Download Firefox 117
+      ansible.windows.win_get_url:
+        url: "{{ firefox_url }}"
+        dest: "{{ download_path }}"
+
+    # ---------------------------------
+    # Install Firefox 117 silently
+    # ---------------------------------
+    - name: Install Firefox 117
+      ansible.windows.win_package:
+        path: "{{ download_path }}"
+        arguments: "-ms"
+        state: present
+
+    # ---------------------------------
+    # Remove installer
+    # ---------------------------------
+    - name: Remove Firefox installer
+      ansible.windows.win_file:
+        path: "{{ download_path }}"
+        state: absent
