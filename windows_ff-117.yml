@@ -1,13 +1,30 @@
 ---
-- name: Test Windows SSH Connection
+- name: Uninstall Firefox from Windows
   hosts: DMDULB1FTR00030
   gather_facts: false
 
   tasks:
-    - name: Check Windows hostname
-      ansible.builtin.raw: hostname
-      register: hostname_result
+    - name: Stop Firefox
+      ansible.windows.win_shell: |
+        Stop-Process -Name firefox -Force -ErrorAction SilentlyContinue
 
-    - name: Display hostname
-      ansible.builtin.debug:
-        var: hostname_result.stdout
+    - name: Uninstall Firefox
+      ansible.windows.win_shell: |
+        $apps = Get-ItemProperty `
+          "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+          "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*" `
+          -ErrorAction SilentlyContinue |
+          Where-Object { $_.DisplayName -like "*Mozilla Firefox*" }
+
+        foreach ($app in $apps) {
+            if ($app.UninstallString) {
+                Start-Process `
+                  -FilePath "cmd.exe" `
+                  -ArgumentList "/c", "$($app.UninstallString) /S" `
+                  -Wait
+            }
+        }
+
+        Write-Output "Firefox uninstall command completed."
+      args:
+        executable: powershell.exe
