@@ -1,0 +1,32 @@
+---
+- name: Check Google Chrome Version on Windows
+  hosts: Windows
+  gather_facts: false
+
+  tasks:
+
+    - name: Check Google Chrome installation and version
+      ansible.windows.win_powershell:
+        script: |
+          $chromePaths = @(
+              "C:\Program Files\Google\Chrome\Application\chrome.exe",
+              "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+          )
+
+          $chrome = $chromePaths |
+              Where-Object { Test-Path $_ } |
+              Select-Object -First 1
+
+          if ($chrome) {
+
+              $version = (Get-Item $chrome).VersionInfo.ProductVersion
+
+              Write-Output "Google Chrome is installed."
+              Write-Output "Chrome Path: $chrome"
+              Write-Output "Chrome Version: $version"
+
+          }
+          else {
+
+              Write-Output "Google Chrome is not installed."
+          }
