@@ -5,7 +5,7 @@
 
   tasks:
 
-    - name: Check Google Chrome installation and version
+    - name: Check Chrome installation and version
       ansible.windows.win_powershell:
         script: |
           $chromePaths = @(
@@ -18,15 +18,27 @@
               Select-Object -First 1
 
           if ($chrome) {
-
               $version = (Get-Item $chrome).VersionInfo.ProductVersion
 
-              Write-Output "Google Chrome is installed."
-              Write-Output "Chrome Path: $chrome"
-              Write-Output "Chrome Version: $version"
-
+              [PSCustomObject]@{
+                  Installed = $true
+                  Path      = $chrome
+                  Version   = $version
+              }
           }
           else {
-
-              Write-Output "Google Chrome is not installed."
+              [PSCustomObject]@{
+                  Installed = $false
+                  Path      = ""
+                  Version   = ""
+              }
           }
+      register: chrome_check
+      changed_when: false
+
+    - name: Display Chrome status
+      ansible.builtin.debug:
+        msg:
+          - "Chrome Installed : {{ chrome_check.output[0].Installed }}"
+          - "Chrome Path      : {{ chrome_check.output[0].Path }}"
+          - "Chrome Version   : {{ chrome_check.output[0].Version }}"
