@@ -8,8 +8,8 @@
     required_chrome_version: "154.0.8037.57/58"
 
     # Chrome installer
-    chrome_installer_url: "http://YOUR-SERVER/Chrome/GoogleChromeStandaloneEnterprise64.msi"
-    chrome_installer_path: "C:\\Temp\\GoogleChromeStandaloneEnterprise64.msi"
+    chrome_installer_url: "http://172.17.9.58/chrome/Chrome154.0.8037.58.msi"
+    chrome_installer_path: "C:\\Temp\\Chrome154.0.8037.58.msi"
 
     # Bookmark backup location
     chrome_backup_path: "C:\\Chrome_Backup"
