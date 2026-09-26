@@ -5,7 +5,7 @@
 
   vars:
     # Required Chrome version
-    required_chrome_version: "154.0.8037.57/58"
+    required_chrome_version: "154.0.8037.58"
 
     # Chrome installer
     chrome_installer_url: "http://172.17.9.58/chrome/Chrome154.0.8037.58.msi"
