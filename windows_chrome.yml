@@ -1,0 +1,334 @@
+---
+- name: Check and Upgrade Google Chrome on Windows
+  hosts: DMDULB1FTR00030
+  gather_facts: false
+
+  vars:
+    # Required Chrome version
+    required_chrome_version: "154.0.8037.57/58"
+
+    # Chrome installer
+    chrome_installer_url: "http://YOUR-SERVER/Chrome/GoogleChromeStandaloneEnterprise64.msi"
+    chrome_installer_path: "C:\\Temp\\GoogleChromeStandaloneEnterprise64.msi"
+
+    # Bookmark backup location
+    chrome_backup_path: "C:\\Chrome_Backup"
+
+  tasks:
+
+    # ============================================================
+    # 1. CHECK CHROME INSTALLATION
+    # ============================================================
+
+    - name: Check whether Google Chrome is installed
+      ansible.windows.win_powershell:
+        script: |
+          $chromePaths = @(
+              "C:\Program Files\Google\Chrome\Application\chrome.exe",
+              "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+          )
+
+          $chrome = $chromePaths |
+              Where-Object { Test-Path $_ } |
+              Select-Object -First 1
+
+          if ($chrome) {
+              Write-Output "Chrome is installed."
+              Write-Output "Chrome executable: $chrome"
+          }
+          else {
+              Write-Output "Chrome is not installed."
+          }
+
+    # ============================================================
+    # 2. GET CHROME EXECUTABLE
+    # ============================================================
+
+    - name: Detect Chrome executable
+      ansible.windows.win_powershell:
+        script: |
+          $chromePaths = @(
+              "C:\Program Files\Google\Chrome\Application\chrome.exe",
+              "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+          )
+
+          $chrome = $chromePaths |
+              Where-Object { Test-Path $_ } |
+              Select-Object -First 1
+
+          if ($chrome) {
+              Write-Output $chrome
+          }
+      register: chrome_executable
+
+    # ============================================================
+    # 3. GET INSTALLED CHROME VERSION
+    # ============================================================
+
+    - name: Get installed Chrome version
+      ansible.windows.win_powershell:
+        script: |
+          $chromePaths = @(
+              "C:\Program Files\Google\Chrome\Application\chrome.exe",
+              "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+          )
+
+          $chrome = $chromePaths |
+              Where-Object { Test-Path $_ } |
+              Select-Object -First 1
+
+          if ($chrome) {
+              $version = (Get-Item $chrome).VersionInfo.ProductVersion
+              Write-Output $version
+          }
+      register: chrome_version
+      when: chrome_executable.output | length > 0
+
+    # ============================================================
+    # 4. DISPLAY VERSION INFORMATION
+    # ============================================================
+
+    - name: Display Chrome version information
+      ansible.builtin.debug:
+        msg:
+          - "Installed Chrome Version: {{ chrome_version.output[0] | default('Not Installed') }}"
+          - "Required Chrome Version: {{ required_chrome_version }}"
+
+    # ============================================================
+    # 5. DETERMINE INSTALL / UPGRADE / SKIP
+    # ============================================================
+
+    - name: Determine Chrome installation action
+      ansible.windows.win_powershell:
+        script: |
+          $required = [version]"{{ required_chrome_version }}"
+
+          $installedText = "{{ chrome_version.output[0] | default('') }}"
+
+          if ([string]::IsNullOrWhiteSpace($installedText)) {
+
+              Write-Output "INSTALL"
+
+          }
+          else {
+
+              try {
+                  $installed = [version]$installedText
+
+                  if ($installed -lt $required) {
+                      Write-Output "UPGRADE"
+                  }
+                  elseif ($installed -eq $required) {
+                      Write-Output "SKIP"
+                  }
+                  else {
+                      Write-Output "NEWER"
+                  }
+              }
+              catch {
+                  Write-Output "UPGRADE"
+              }
+          }
+      register: chrome_action
+
+    - name: Display Chrome action
+      ansible.builtin.debug:
+        msg: "Chrome action: {{ chrome_action.output[0] }}"
+
+    # ============================================================
+    # 6. CREATE BACKUP DIRECTORY
+    # ============================================================
+
+    - name: Create Chrome bookmark backup directory
+      ansible.windows.win_file:
+        path: "{{ chrome_backup_path }}"
+        state: directory
+      when:
+        - chrome_action.output[0] == "UPGRADE"
+
+    # ============================================================
+    # 7. BACKUP CHROME BOOKMARKS
+    # ============================================================
+
+    - name: Backup Chrome bookmarks
+      ansible.windows.win_powershell:
+        script: |
+          $sourceRoot = "C:\Users"
+          $backupRoot = "{{ chrome_backup_path }}"
+
+          $users = Get-ChildItem $sourceRoot -Directory -ErrorAction SilentlyContinue
+
+          foreach ($user in $users) {
+
+              $profilesRoot = Join-Path `
+                  $user.FullName `
+                  "AppData\Local\Google\Chrome\User Data"
+
+              if (Test-Path $profilesRoot) {
+
+                  $profiles = Get-ChildItem $profilesRoot -Directory `
+                      -ErrorAction SilentlyContinue
+
+                  foreach ($profile in $profiles) {
+
+                      $bookmarkFile = Join-Path `
+                          $profile.FullName `
+                          "Bookmarks"
+
+                      if (Test-Path $bookmarkFile) {
+
+                          $userBackup = Join-Path `
+                              $backupRoot `
+                              $user.Name
+
+                          New-Item `
+                              -ItemType Directory `
+                              -Path $userBackup `
+                              -Force | Out-Null
+
+                          $profileBackup = Join-Path `
+                              $userBackup `
+                              $profile.Name
+
+                          New-Item `
+                              -ItemType Directory `
+                              -Path $profileBackup `
+                              -Force | Out-Null
+
+                          Copy-Item `
+                              $bookmarkFile `
+                              $profileBackup `
+                              -Force
+
+                          Write-Output `
+                              "Bookmark backed up: $bookmarkFile"
+                      }
+                  }
+              }
+          }
+
+          Write-Output "Chrome bookmark backup completed."
+
+      when:
+        - chrome_action.output[0] == "UPGRADE"
+
+    # ============================================================
+    # 8. DOWNLOAD CHROME INSTALLER
+    # ============================================================
+
+    - name: Create Chrome installer directory
+      ansible.windows.win_file:
+        path: "C:\\Temp"
+        state: directory
+      when:
+        - chrome_action.output[0] in ["INSTALL", "UPGRADE"]
+
+    - name: Download Chrome installer
+      ansible.windows.win_get_url:
+        url: "{{ chrome_installer_url }}"
+        dest: "{{ chrome_installer_path }}"
+        force: true
+      when:
+        - chrome_action.output[0] in ["INSTALL", "UPGRADE"]
+
+    # ============================================================
+    # 9. CLOSE CHROME
+    # ============================================================
+
+    - name: Close Google Chrome
+      ansible.windows.win_shell: |
+        taskkill.exe /F /IM chrome.exe /T 2>$null
+        exit 0
+      args:
+        executable: powershell.exe
+      when:
+        - chrome_action.output[0] in ["INSTALL", "UPGRADE"]
+
+    # ============================================================
+    # 10. INSTALL / UPGRADE CHROME
+    # ============================================================
+
+    - name: Install or upgrade Google Chrome
+      ansible.windows.win_package:
+        path: "{{ chrome_installer_path }}"
+        state: present
+        arguments: "/qn /norestart"
+      register: chrome_install_result
+      when:
+        - chrome_action.output[0] in ["INSTALL", "UPGRADE"]
+
+    # ============================================================
+    # 11. VERIFY CHROME VERSION
+    # ============================================================
+
+    - name: Verify Chrome installation
+      ansible.windows.win_powershell:
+        script: |
+          $chromePaths = @(
+              "C:\Program Files\Google\Chrome\Application\chrome.exe",
+              "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+          )
+
+          $chrome = $chromePaths |
+              Where-Object { Test-Path $_ } |
+              Select-Object -First 1
+
+          if ($chrome) {
+
+              $version = (Get-Item $chrome).VersionInfo.ProductVersion
+
+              Write-Output "Chrome installed successfully."
+              Write-Output "Installed Chrome Version: $version"
+
+          }
+          else {
+
+              Write-Error "Chrome installation verification failed."
+          }
+      when:
+        - chrome_action.output[0] in ["INSTALL", "UPGRADE"]
+
+    # ============================================================
+    # 12. VERIFY BOOKMARK BACKUP
+    # ============================================================
+
+    - name: Verify Chrome bookmark backup
+      ansible.windows.win_powershell:
+        script: |
+          if (Test-Path "{{ chrome_backup_path }}") {
+
+              $bookmarks = Get-ChildItem `
+                  "{{ chrome_backup_path }}" `
+                  -Filter "Bookmarks" `
+                  -Recurse `
+                  -ErrorAction SilentlyContinue
+
+              if ($bookmarks) {
+
+                  Write-Output "Chrome bookmark backup verified."
+                  Write-Output "Bookmark files backed up: $($bookmarks.Count)"
+
+              }
+              else {
+
+                  Write-Output "No Chrome bookmark files were found."
+              }
+
+          }
+          else {
+
+              Write-Output "Chrome backup directory does not exist."
+          }
+      when:
+        - chrome_action.output[0] == "UPGRADE"
+
+    # ============================================================
+    # 13. FINAL STATUS
+    # ============================================================
+
+    - name: Display final Chrome status
+      ansible.builtin.debug:
+        msg:
+          - "Chrome processing completed."
+          - "Required Version: {{ required_chrome_version }}"
+          - "Action Performed: {{ chrome_action.output[0] }}"
