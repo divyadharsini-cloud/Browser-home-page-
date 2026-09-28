@@ -1,6 +1,6 @@
 ---
 - name: Check Google Chrome Version on Windows
-  hosts: DPDYFH1FWAR0796
+  hosts: DPDYPH1FGLA0652
   gather_facts: false
 
   tasks:
