@@ -1,0 +1,32 @@
+---
+- name: Configure PowerShell as OpenSSH Default Shell
+  hosts: DPDYPH2FWAR0794
+  gather_facts: false
+
+  tasks:
+
+    - name: Set PowerShell as OpenSSH default shell
+      ansible.windows.win_powershell:
+        script: |
+          $shell = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+
+          New-ItemProperty `
+            -Path "HKLM:\SOFTWARE\OpenSSH" `
+            -Name "DefaultShell" `
+            -Value $shell `
+            -PropertyType String `
+            -Force
+
+    - name: Restart OpenSSH service
+      ansible.windows.win_service:
+        name: sshd
+        state: restarted
+
+    - name: Verify OpenSSH default shell
+      ansible.windows.win_powershell:
+        script: |
+          $shell = (Get-ItemProperty `
+            -Path "HKLM:\SOFTWARE\OpenSSH" `
+            -Name "DefaultShell").DefaultShell
+
+          Write-Output "OpenSSH Default Shell: $shell"
