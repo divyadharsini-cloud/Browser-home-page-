@@ -1,7 +1,7 @@
 
 ---
 - name: Check Google Chrome Installation on Linux
-  hosts: old, new
+  hosts: ansibletesting
   become: true
   gather_facts: true
 
