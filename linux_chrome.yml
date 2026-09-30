@@ -1,7 +1,6 @@
-
 ---
 - name: Deploy standard Google Chrome 154.0.8037.57 on Linux client
-  hosts: ansibletesting
+  hosts: new, old
   become: true
   gather_facts: true
 
@@ -9,7 +8,7 @@
     required_chrome_version: "154.0.8037.57"
     required_package_version: "154.0.8037.57-1"
 
-    chrome_package_url: "http://172.17.9.58/chrome/google-chrome-stable_154.0.8037.57-1_amd64.deb"
+    chrome_package_url: "http://172.21.1.3/chrome/google-chrome-stable_154.0.8037.57-1_amd64.deb"
     chrome_package_path: "/var/cache/google-chrome-stable_154.0.8037.57-1_amd64.deb"
 
     chrome_stable_launcher: "/usr/bin/google-chrome-stable"
@@ -20,6 +19,7 @@
     pending_script: "/usr/local/sbin/chrome-stable-pending.sh"
     pending_service: "chrome-stable-pending.service"
     pending_timer: "chrome-stable-pending.timer"
+    chrome_deadline_file: "/var/lib/chrome-stable-upgrade-start"
 
   tasks:
 
@@ -31,7 +31,7 @@
           - ansible_facts.os_family == "Debian"
         fail_msg: "This playbook requires a Debian-based x86_64 Linux client."
 
-    # 2. Detect the STANDARD Chrome installation
+    # 2. Detect the installed standard Chrome version
     - name: Detect installed standard Chrome version
       ansible.builtin.shell: |
         if command -v google-chrome-stable >/dev/null 2>&1; then
@@ -104,7 +104,7 @@
         msg: "Bookmark files backed up: {{ bookmark_search.stdout_lines | default([]) | length }}"
       when: chrome_action != 'SKIP'
 
-    # 4. Download the STANDARD Chrome Debian package
+    # 4. Download Chrome from the internal mirror
     - name: Download Chrome package from internal mirror
       ansible.builtin.get_url:
         url: "{{ chrome_package_url }}"
@@ -148,7 +148,7 @@
         success_msg: "Validated standard Chrome package {{ required_package_version }} (amd64)."
       when: chrome_action != 'SKIP'
 
-    # 6. Check active browser sessions
+    # 6. Check active Chrome sessions
     - name: Check whether Chrome is running
       ansible.builtin.command:
         argv:
@@ -202,7 +202,7 @@
           and chrome_running.rc != 0
         )
 
-    # 8. Restore the standard Chrome command and desktop launcher
+    # 8. Restore Chrome command and desktop launcher
     - name: Point google-chrome command to standard Chrome
       ansible.builtin.file:
         src: "{{ chrome_stable_launcher }}"
@@ -242,7 +242,19 @@
           and chrome_running.rc != 0
         )
 
-    # 9. If Chrome is running, defer package installation
+    # 9. If Chrome is running, record the 24-hour deadline
+    - name: Record deferred installation start time
+      ansible.builtin.shell: |
+        install -d -m 0755 /var/lib
+        date +%s > "{{ chrome_deadline_file }}"
+      args:
+        executable: /bin/bash
+      changed_when: true
+      when:
+        - chrome_action != 'SKIP'
+        - chrome_running.rc == 0
+
+    # 10. Create deferred installation script with 24-hour expiry
     - name: Create deferred Chrome installation script
       ansible.builtin.copy:
         dest: "{{ pending_script }}"
@@ -257,19 +269,42 @@
           REQUIRED="{{ required_chrome_version }}"
           PACKAGE_VERSION="{{ required_package_version }}"
           TIMER="{{ pending_timer }}"
+          DEADLINE="{{ chrome_deadline_file }}"
+
+          # Stop retrying after 24 hours.
+          if [ -f "$DEADLINE" ]; then
+            START=$(cat "$DEADLINE")
+            NOW=$(date +%s)
+
+            if [[ "$START" =~ ^[0-9]+$ ]] &&
+               [ $((NOW - START)) -ge 86400 ]; then
+              echo "Deferred installation expired after 24 hours; Chrome was not changed."
+              systemctl disable --now "$TIMER" >/dev/null 2>&1 || true
+              rm -f "$DEADLINE"
+              exit 0
+            fi
+          else
+            echo "Deadline file is missing; refusing an unlimited retry loop." >&2
+            systemctl disable --now "$TIMER" >/dev/null 2>&1 || true
+            exit 1
+          fi
 
           # Never terminate an active Chrome session.
           if pgrep -x chrome >/dev/null 2>&1; then
+            echo "Chrome is still running; will retry."
             exit 0
           fi
 
+          # Validate the package before installation.
           ACTUAL_PACKAGE=$(dpkg-deb -f "$DEB" Version)
+
           if [ "$ACTUAL_PACKAGE" != "$PACKAGE_VERSION" ]; then
             echo "Unexpected package version: $ACTUAL_PACKAGE" >&2
             exit 1
           fi
 
           export DEBIAN_FRONTEND=noninteractive
+
           apt-get update
           apt-get install -y "$DEB"
 
@@ -299,12 +334,15 @@
           DESKTOP
 
           systemctl disable --now "$TIMER" >/dev/null 2>&1 || true
+          rm -f "$DEADLINE"
+
           echo "Installed standard Chrome $VERSION"
 
       when:
         - chrome_action != 'SKIP'
         - chrome_running.rc == 0
 
+    # 11. Create deferred installation service
     - name: Create deferred Chrome service
       ansible.builtin.copy:
         dest: "/etc/systemd/system/{{ pending_service }}"
@@ -322,6 +360,7 @@
         - chrome_action != 'SKIP'
         - chrome_running.rc == 0
 
+    # 12. Create timer to retry every minute
     - name: Create deferred Chrome timer
       ansible.builtin.copy:
         dest: "/etc/systemd/system/{{ pending_timer }}"
@@ -353,13 +392,12 @@
         - chrome_action != 'SKIP'
         - chrome_running.rc == 0
 
-    # 10. Report the outcome
+    # 13. Report deployment status
     - name: Display final deployment status
       ansible.builtin.debug:
         msg: >-
           {{
-            'Chrome is running. Standard Chrome installation is scheduled
-            to retry after all Chrome processes close.'
+            'Chrome is running. Installation will retry every minute for up to 24 hours.'
             if chrome_action != 'SKIP' and chrome_running.rc == 0
             else
             'Verified standard Chrome: ' ~ chrome_final_version.stdout
