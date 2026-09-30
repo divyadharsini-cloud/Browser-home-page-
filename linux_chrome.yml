@@ -1,19 +1,19 @@
 
 ---
-- name: Install or Upgrade Chrome for Testing from Internal ZIP
+- name: Install or Upgrade Chrome for Testing on Linux
   hosts: ansibletesting
   become: true
   gather_facts: true
 
   vars:
     target_version: "154.0.8037.57"
-    mirror_zip_url: "http://172.17.9.58/chrome/linux/154.0.8037.57/chrome-linux64.zip"
-
+    chrome_zip_url: "http://172.17.9.58/chrome/linux/154.0.8037.57/chrome-linux64.zip"
+    zip_path: "/tmp/chrome-linux64.zip"
     install_root: "/opt/google/chrome-for-testing"
     target_dir: "/opt/google/chrome-for-testing/154.0.8037.57"
-    current_dir: "/opt/google/chrome-for-testing/current"
+    current_link: "/opt/google/chrome-for-testing/current"
     staging_dir: "/opt/google/chrome-for-testing/staging"
-    zip_path: "/tmp/chrome-linux64.zip"
+    launcher_path: "/usr/local/bin/google-chrome-for-testing"
 
   tasks:
     - name: Verify supported architecture
@@ -22,16 +22,16 @@
           - ansible_architecture == "x86_64"
         fail_msg: "This playbook supports x86_64 Linux only."
 
-    - name: Check unzip availability
+    - name: Ensure unzip is installed
       ansible.builtin.package:
         name: unzip
         state: present
 
     - name: Detect installed Chrome for Testing
       ansible.builtin.shell: |
-        if [ -x "{{ current_dir }}/chrome" ]; then
-          "{{ current_dir }}/chrome" --version 2>/dev/null \
-            | grep -oE '[0-9]+(\.[0-9]+){3}' | head -n 1
+        if [ -x "{{ current_link }}/chrome" ]; then
+          "{{ current_link }}/chrome" --version |
+            grep -oE '[0-9]+(\.[0-9]+){3}' | head -n 1
         else
           echo "NOT_INSTALLED"
         fi
@@ -44,7 +44,7 @@
       ansible.builtin.set_fact:
         installed_version: "{{ detected_chrome.stdout | trim }}"
 
-    - name: Compare installed version with target
+    - name: Compare installed and target versions
       ansible.builtin.command:
         argv:
           - dpkg
@@ -52,7 +52,7 @@
           - "{{ installed_version }}"
           - lt
           - "{{ target_version }}"
-      register: version_comparison
+      register: version_check
       changed_when: false
       failed_when: false
       when: installed_version != "NOT_INSTALLED"
@@ -62,7 +62,7 @@
         chrome_action: >-
           {% if installed_version == 'NOT_INSTALLED' %}
           INSTALL
-          {% elif version_comparison.rc == 0 %}
+          {% elif version_check.rc == 0 %}
           UPGRADE
           {% else %}
           SKIP
@@ -77,7 +77,7 @@
 
     - name: Check whether Chrome for Testing is running
       ansible.builtin.shell: |
-        pgrep -f '^/opt/google/chrome-for-testing/[^ ]*/chrome([[:space:]]|$)' >/dev/null 2>&1
+        pgrep -af '^/opt/google/chrome-for-testing/[^ ]*/chrome([[:space:]]|$)' >/dev/null 2>&1
       args:
         executable: /bin/bash
       register: chrome_running
@@ -94,7 +94,7 @@
         - chrome_action | trim in ['INSTALL', 'UPGRADE']
         - chrome_running.rc | default(1) != 0
 
-    - name: Remove incomplete staging directory
+    - name: Remove old staging directory
       ansible.builtin.file:
         path: "{{ staging_dir }}"
         state: absent
@@ -111,9 +111,9 @@
         - chrome_action | trim in ['INSTALL', 'UPGRADE']
         - chrome_running.rc | default(1) != 0
 
-    - name: Download Chrome ZIP from internal mirror
+    - name: Download Chrome ZIP
       ansible.builtin.get_url:
-        url: "{{ mirror_zip_url }}"
+        url: "{{ chrome_zip_url }}"
         dest: "{{ zip_path }}"
         mode: "0644"
         force: true
@@ -138,17 +138,17 @@
         - chrome_action | trim in ['INSTALL', 'UPGRADE']
         - chrome_running.rc | default(1) != 0
 
-    - name: Stop if ZIP does not contain Chrome
+    - name: Validate extracted Chrome executable
       ansible.builtin.assert:
         that:
           - extracted_chrome.stat.exists
           - extracted_chrome.stat.executable
-        fail_msg: "The ZIP does not contain an executable at chrome-linux64/chrome."
+        fail_msg: "Chrome executable was not found in the downloaded ZIP."
       when:
         - chrome_action | trim in ['INSTALL', 'UPGRADE']
         - chrome_running.rc | default(1) != 0
 
-    - name: Verify extracted Chrome version
+    - name: Verify extracted version
       ansible.builtin.command:
         argv:
           - "{{ staging_dir }}/chrome-linux64/chrome"
@@ -159,18 +159,16 @@
         - chrome_action | trim in ['INSTALL', 'UPGRADE']
         - chrome_running.rc | default(1) != 0
 
-    - name: Confirm ZIP contains the requested version
+    - name: Ensure ZIP contains the target version
       ansible.builtin.assert:
         that:
-          - extracted_version.stdout | regex_search('[0-9]+(\.[0-9]+){3}') == target_version
-        fail_msg: >-
-          The downloaded ZIP does not contain version {{ target_version }}.
-          Detected: {{ extracted_version.stdout }}
+          - (extracted_version.stdout | regex_search('[0-9]+(\.[0-9]+){3}')) == target_version
+        fail_msg: "The downloaded ZIP does not contain the requested version."
       when:
         - chrome_action | trim in ['INSTALL', 'UPGRADE']
         - chrome_running.rc | default(1) != 0
 
-    - name: Remove previous incomplete target directory
+    - name: Remove old target version directory
       ansible.builtin.file:
         path: "{{ target_dir }}"
         state: absent
@@ -178,7 +176,7 @@
         - chrome_action | trim in ['INSTALL', 'UPGRADE']
         - chrome_running.rc | default(1) != 0
 
-    - name: Install versioned Chrome directory
+    - name: Move extracted Chrome into target directory
       ansible.builtin.command:
         argv:
           - mv
@@ -189,39 +187,31 @@
         - chrome_action | trim in ['INSTALL', 'UPGRADE']
         - chrome_running.rc | default(1) != 0
 
-    - name: Set Chrome executable permissions
-      ansible.builtin.file:
-        path: "{{ target_dir }}/chrome"
-        mode: "0755"
-      when:
-        - chrome_action | trim in ['INSTALL', 'UPGRADE']
-        - chrome_running.rc | default(1) != 0
-
-    - name: Point current to installed Chrome version
+    - name: Update current version symlink
       ansible.builtin.file:
         src: "{{ target_dir }}"
-        dest: "{{ current_dir }}"
+        dest: "{{ current_link }}"
         state: link
         force: true
       when:
         - chrome_action | trim in ['INSTALL', 'UPGRADE']
         - chrome_running.rc | default(1) != 0
 
-    - name: Create Chrome for Testing launcher
+    - name: Install Chrome for Testing launcher
       ansible.builtin.copy:
-        dest: /usr/local/bin/google-chrome-for-testing
+        dest: "{{ launcher_path }}"
+        mode: "0755"
         content: |
           #!/bin/sh
           exec /opt/google/chrome-for-testing/current/chrome "$@"
-        mode: "0755"
       when:
         - chrome_action | trim in ['INSTALL', 'UPGRADE']
         - chrome_running.rc | default(1) != 0
 
-    - name: Verify final Chrome version
+    - name: Verify installed Chrome version
       ansible.builtin.command:
         argv:
-          - "{{ current_dir }}/chrome"
+          - "{{ current_link }}/chrome"
           - --version
       register: final_version
       changed_when: false
@@ -229,23 +219,39 @@
         - chrome_action | trim in ['INSTALL', 'UPGRADE']
         - chrome_running.rc | default(1) != 0
 
-    - name: Display final status
-      ansible.builtin.debug:
-        msg: >-
-          {% if chrome_action | trim == 'SKIP' %}
-          SKIPPED: Chrome for Testing is already at target version or newer.
-          Installed: {{ installed_version }}
-          {% elif chrome_running.rc | default(1) == 0 %}
-          SKIPPED: Chrome for Testing is running. Close it and rerun the AWX job.
-          {% else %}
-          SUCCESS: {{ final_version.stdout }} installed.
-          Launcher: /usr/local/bin/google-chrome-for-testing
-          {% endif %}
+    - name: Confirm final version
+      ansible.builtin.assert:
+        that:
+          - (final_version.stdout | regex_search('[0-9]+(\.[0-9]+){3}')) == target_version
+        fail_msg: "Installed Chrome version verification failed."
+      when:
+        - chrome_action | trim in ['INSTALL', 'UPGRADE']
+        - chrome_running.rc | default(1) != 0
 
-    - name: Clean up staging directory
+    - name: Delete downloaded ZIP after successful verification
+      ansible.builtin.file:
+        path: "{{ zip_path }}"
+        state: absent
+      when:
+        - chrome_action | trim in ['INSTALL', 'UPGRADE']
+        - chrome_running.rc | default(1) != 0
+
+    - name: Remove staging directory
       ansible.builtin.file:
         path: "{{ staging_dir }}"
         state: absent
       when:
         - chrome_action | trim in ['INSTALL', 'UPGRADE']
         - chrome_running.rc | default(1) != 0
+
+    - name: Display final result
+      ansible.builtin.debug:
+        msg: >-
+          {% if chrome_action | trim == 'SKIP' %}
+          SKIPPED: Chrome for Testing is already at the target version or newer.
+          {% elif chrome_running.rc | default(1) == 0 %}
+          SKIPPED: Chrome for Testing is running. Close it and rerun the AWX job.
+          {% else %}
+          SUCCESS: {{ final_version.stdout }}.
+          ZIP removed after verification.
+          {% endif %}
