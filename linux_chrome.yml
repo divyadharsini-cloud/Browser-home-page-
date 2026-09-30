@@ -1,80 +1,55 @@
 
 ---
-- name: Install or Upgrade Google Chrome Stable on Linux
+- name: Deploy Chrome 154.0.8037.57 on Linux clients
   hosts: ansibletesting
   become: true
   gather_facts: true
 
   vars:
-    # ==========================================================
-    # CHROME VERSION AND INTERNAL MIRROR
-    # ==========================================================
-
     required_chrome_version: "154.0.8037.57"
 
-    # IMPORTANT: This must point to the STANDARD STABLE .deb,
-    # not the Chrome for Testing ZIP.
-    chrome_deb_url: "http://172.17.9.58/chrome/google-chrome-stable_current_amd64.deb"
-    chrome_deb_path: "/var/cache/google-chrome-stable.deb"
+    # Internal mirror: Chrome for Testing ZIP
+    chrome_zip_url: "http://172.17.9.58/chrome/linux/154.0.8037.57/chrome-linux64.zip"
+    chrome_zip_path: "/var/cache/chrome-linux64.zip"
 
-    # ==========================================================
-    # CHROME PATHS
-    # ==========================================================
-
-    chrome_binary: "/usr/bin/google-chrome-stable"
+    # Client installation paths
+    chrome_install_dir: "/opt/chrome-for-testing/154.0.8037.57"
+    chrome_binary: "/opt/chrome-for-testing/154.0.8037.57/chrome-linux64/chrome"
     chrome_link: "/usr/bin/google-chrome"
 
-    # ==========================================================
-    # BOOKMARK BACKUP
-    # ==========================================================
-
+    # Bookmark backup
     bookmark_backup_root: "/var/backups/chrome-bookmarks"
 
-    # ==========================================================
-    # DEFERRED INSTALLATION / UPGRADE
-    # ==========================================================
-
-    pending_script: "/usr/local/sbin/chrome-stable-pending.sh"
-    pending_service: "chrome-stable-pending.service"
-    pending_timer: "chrome-stable-pending.timer"
+    # Deferred installation
+    pending_script: "/usr/local/sbin/chrome-testing-pending.sh"
+    pending_service: "chrome-testing-pending.service"
+    pending_timer: "chrome-testing-pending.timer"
 
   tasks:
 
-    # ==========================================================
-    # 1. DETECT GOOGLE CHROME STABLE
-    # ==========================================================
+    # 1. Check architecture
+    - name: Verify Linux architecture
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.architecture == "x86_64"
+        fail_msg: "This playbook requires an x86_64 Linux client."
 
-    - name: Detect installed Google Chrome Stable version
+    # 2. Detect the requested Chrome for Testing version
+    - name: Detect installed Chrome for Testing version
       ansible.builtin.shell: |
-        for bin in \
-          /usr/bin/google-chrome-stable \
-          /opt/google/chrome/google-chrome; do
-
-          if [ -x "$bin" ]; then
-            VERSION=$(
-              "$bin" --version 2>/dev/null |
-              grep -oE '[0-9]+(\.[0-9]+){3}' |
-              head -n 1 || true
-            )
-
-            if [ -n "$VERSION" ]; then
-              echo "$VERSION"
-              exit 0
-            fi
-          fi
-        done
-
-        echo "NOT_INSTALLED"
+        if [ -x "{{ chrome_binary }}" ]; then
+          "{{ chrome_binary }}" --version 2>/dev/null |
+            grep -oE '[0-9]+(\.[0-9]+){3}' | head -n 1
+        else
+          echo "NOT_INSTALLED"
+        fi
       args:
         executable: /bin/bash
       register: chrome_version_check
       changed_when: false
 
-    # ==========================================================
-    # 2. DETERMINE INSTALL / UPGRADE / SKIP
-    # ==========================================================
-
-    - name: Determine Chrome action
+    # 3. Decide whether to install, upgrade, or skip
+    - name: Determine Chrome deployment action
       ansible.builtin.set_fact:
         chrome_action: >-
           {{
@@ -89,18 +64,15 @@
             )
           }}
 
-    - name: Display Chrome decision
+    - name: Display Chrome deployment decision
       ansible.builtin.debug:
         msg:
-          - "Installed version: {{ chrome_version_check.stdout | trim }}"
+          - "Detected version: {{ chrome_version_check.stdout | trim }}"
           - "Required version: {{ required_chrome_version }}"
           - "Action: {{ chrome_action }}"
 
-    # ==========================================================
-    # 3. BACK UP BOOKMARKS BEFORE INSTALL / UPGRADE
-    # ==========================================================
-
-    - name: Create timestamped bookmark backup directory
+    # 4. Back up bookmarks before installation or upgrade
+    - name: Create bookmark backup directory
       ansible.builtin.file:
         path: "{{ bookmark_backup_root }}/{{ inventory_hostname }}/{{ ansible_date_time.iso8601_basic_short }}"
         state: directory
@@ -109,7 +81,7 @@
         mode: "0700"
       when: chrome_action in ['INSTALL', 'UPGRADE']
 
-    - name: Find existing Chrome bookmark files
+    - name: Find existing Chrome bookmarks
       ansible.builtin.find:
         paths:
           - /home
@@ -118,10 +90,13 @@
         file_type: file
         recurse: true
         hidden: true
+        excludes:
+          - thinclient_drives
       register: bookmark_files
+      failed_when: false
       when: chrome_action in ['INSTALL', 'UPGRADE']
 
-    - name: Back up Chrome bookmark files
+    - name: Back up Chrome bookmarks
       ansible.builtin.copy:
         src: "{{ item.path }}"
         dest: "{{ bookmark_backup_root }}/{{ inventory_hostname }}/{{ ansible_date_time.iso8601_basic_short }}/{{ item.path | regex_replace('^/', '') | replace('/', '__') }}"
@@ -136,13 +111,61 @@
       ansible.builtin.debug:
         msg:
           - "Bookmark files found: {{ bookmark_files.matched | default(0) }}"
-          - "Backup location: {{ bookmark_backup_root }}/{{ inventory_hostname }}/{{ ansible_date_time.iso8601_basic_short }}"
+          - "Backup directory: {{ bookmark_backup_root }}/{{ inventory_hostname }}/{{ ansible_date_time.iso8601_basic_short }}"
       when: chrome_action in ['INSTALL', 'UPGRADE']
 
-    # ==========================================================
-    # 4. DOWNLOAD THE STANDARD STABLE DEB PACKAGE
-    # ==========================================================
+    # 5. Install dependencies ON THE CLIENT
+    # Supports older package names and Ubuntu 24.04-style t64 names.
+    - name: Install Chrome runtime dependencies on client
+      ansible.builtin.shell: |
+        set -euo pipefail
+        export DEBIAN_FRONTEND=noninteractive
 
+        apt-get update
+
+        choose_pkg() {
+          for pkg in "$@"; do
+            if apt-cache show "$pkg" >/dev/null 2>&1; then
+              echo "$pkg"
+              return 0
+            fi
+          done
+          echo "No available package found among: $*" >&2
+          return 1
+        }
+
+        pkgs=(
+          unzip
+          libnss3
+          libx11-6
+          libx11-xcb1
+          libxcb1
+          libxcomposite1
+          libxdamage1
+          libxext6
+          libxfixes3
+          libxrandr2
+          libgbm1
+          libpango-1.0-0
+          libcairo2
+          libxshmfence1
+          libdrm2
+        )
+
+        pkgs+=("$(choose_pkg libatk1.0-0 libatk1.0-0t64)")
+        pkgs+=("$(choose_pkg libatk-bridge2.0-0 libatk-bridge2.0-0t64)")
+        pkgs+=("$(choose_pkg libatspi2.0-0 libatspi2.0-0t64)")
+        pkgs+=("$(choose_pkg libasound2 libasound2t64)")
+        pkgs+=("$(choose_pkg libgtk-3-0 libgtk-3-0t64)")
+
+        apt-get install -y "${pkgs[@]}"
+      args:
+        executable: /bin/bash
+      register: dependency_install
+      changed_when: "'0 newly installed' not in dependency_install.stdout"
+      when: chrome_action in ['INSTALL', 'UPGRADE']
+
+    # 6. Download the exact ZIP from the mirror
     - name: Create package cache directory
       ansible.builtin.file:
         path: /var/cache
@@ -150,46 +173,14 @@
         mode: "0755"
       when: chrome_action in ['INSTALL', 'UPGRADE']
 
-    - name: Download Google Chrome Stable package
+    - name: Download Chrome ZIP from internal mirror
       ansible.builtin.get_url:
-        url: "{{ chrome_deb_url }}"
-        dest: "{{ chrome_deb_path }}"
+        url: "{{ chrome_zip_url }}"
+        dest: "{{ chrome_zip_path }}"
         mode: "0644"
       when: chrome_action in ['INSTALL', 'UPGRADE']
 
-    # ==========================================================
-    # 5. VALIDATE PACKAGE VERSION BEFORE INSTALLATION
-    # ==========================================================
-
-    - name: Read downloaded package version
-      ansible.builtin.command:
-        argv:
-          - dpkg-deb
-          - -f
-          - "{{ chrome_deb_path }}"
-          - Version
-      register: chrome_package_version
-      changed_when: false
-      when: chrome_action in ['INSTALL', 'UPGRADE']
-
-    - name: Verify downloaded package version
-      ansible.builtin.assert:
-        that:
-          - >-
-            (chrome_package_version.stdout | trim |
-            regex_replace('-[^-]+$', '')) == required_chrome_version
-        fail_msg: >-
-          Downloaded DEB version {{ chrome_package_version.stdout | default('unknown') }}
-          does not match required version {{ required_chrome_version }}.
-          Check the internal mirror. No installation will be performed.
-        success_msg: "Downloaded Chrome Stable package version is correct."
-      when: chrome_action in ['INSTALL', 'UPGRADE']
-
-    # ==========================================================
-    # 6. CHECK WHETHER ANY CHROME BROWSER IS RUNNING
-    # NEVER FORCE-CLOSE THE BROWSER
-    # ==========================================================
-
+    # 7. Check whether Chrome is running
     - name: Check Chrome processes
       ansible.builtin.shell: |
         pgrep -x chrome >/dev/null 2>&1
@@ -200,159 +191,65 @@
       failed_when: false
       when: chrome_action in ['INSTALL', 'UPGRADE']
 
-    - name: Display Chrome process status
+    - name: Display browser process status
       ansible.builtin.debug:
         msg: >-
           {{
-            'Chrome is running. Installation or upgrade will be deferred.'
+            'Chrome is running. Deployment will wait until it closes.'
             if chrome_running.rc == 0
-            else 'Chrome is not running. Installation or upgrade can proceed.'
+            else 'Chrome is not running. Deployment can proceed.'
           }}
       when: chrome_action in ['INSTALL', 'UPGRADE']
 
-    # ==========================================================
-    # 7. CREATE DEFERRED INSTALLATION SCRIPT
-    # ==========================================================
-
-    - name: Create pending installation script
-      ansible.builtin.copy:
-        dest: "{{ pending_script }}"
+    # 8. Install immediately if Chrome is closed
+    - name: Create Chrome installation directory
+      ansible.builtin.file:
+        path: "{{ chrome_install_dir }}"
+        state: directory
         owner: root
         group: root
-        mode: "0750"
-        content: |
-          #!/bin/bash
-          set -euo pipefail
-
-          REQUIRED="{{ required_chrome_version }}"
-          PACKAGE="{{ chrome_deb_path }}"
-          TIMER="{{ pending_timer }}"
-
-          # Never kill Chrome or close browser tabs.
-          if pgrep -x chrome >/dev/null 2>&1; then
-              echo "Chrome is running; retry after it closes."
-              exit 0
-          fi
-
-          # Skip if the required version or a newer version exists.
-          CURRENT=$(
-            for BIN in \
-              /usr/bin/google-chrome-stable \
-              /opt/google/chrome/google-chrome; do
-              if [ -x "$BIN" ]; then
-                "$BIN" --version 2>/dev/null |
-                  grep -oE '[0-9]+(\.[0-9]+){3}' |
-                  head -n 1
-                break
-              fi
-            done
-          )
-
-          if [ -n "$CURRENT" ] &&
-             dpkg --compare-versions "$CURRENT" ge "$REQUIRED"; then
-              systemctl disable --now "$TIMER" >/dev/null 2>&1 || true
-              exit 0
-          fi
-
-          if [ ! -s "$PACKAGE" ]; then
-              echo "Chrome package is missing: $PACKAGE" >&2
-              exit 1
-          fi
-
-          # Install only after Chrome is closed.
-          apt-get install -y "$PACKAGE"
-
-          INSTALLED=$(
-            /usr/bin/google-chrome-stable --version 2>/dev/null |
-            grep -oE '[0-9]+(\.[0-9]+){3}' |
-            head -n 1
-          )
-
-          if ! dpkg --compare-versions "$INSTALLED" ge "$REQUIRED"; then
-              echo "Chrome version verification failed: $INSTALLED" >&2
-              exit 1
-          fi
-
-          ln -sfn /usr/bin/google-chrome-stable /usr/bin/google-chrome
-
-          systemctl disable --now "$TIMER" >/dev/null 2>&1 || true
-
-          echo "Chrome Stable installed/upgraded successfully: $INSTALLED"
-
-      when:
-        - chrome_action in ['INSTALL', 'UPGRADE']
-        - chrome_running.rc == 0
-
-    # ==========================================================
-    # 8. CREATE SYSTEMD SERVICE AND TIMER FOR DEFERRED WORK
-    # ==========================================================
-
-    - name: Create pending installation service
-      ansible.builtin.copy:
-        dest: "/etc/systemd/system/{{ pending_service }}"
-        owner: root
-        group: root
-        mode: "0644"
-        content: |
-          [Unit]
-          Description=Install or upgrade Google Chrome Stable after browser closure
-
-          [Service]
-          Type=oneshot
-          ExecStart={{ pending_script }}
-      when:
-        - chrome_action in ['INSTALL', 'UPGRADE']
-        - chrome_running.rc == 0
-
-    - name: Create pending installation timer
-      ansible.builtin.copy:
-        dest: "/etc/systemd/system/{{ pending_timer }}"
-        owner: root
-        group: root
-        mode: "0644"
-        content: |
-          [Unit]
-          Description=Retry Google Chrome Stable installation
-
-          [Timer]
-          OnBootSec=1min
-          OnUnitActiveSec=1min
-          Unit={{ pending_service }}
-
-          [Install]
-          WantedBy=timers.target
-      when:
-        - chrome_action in ['INSTALL', 'UPGRADE']
-        - chrome_running.rc == 0
-
-    - name: Enable pending installation timer
-      ansible.builtin.systemd:
-        name: "{{ pending_timer }}"
-        daemon_reload: true
-        enabled: true
-        state: started
-      when:
-        - chrome_action in ['INSTALL', 'UPGRADE']
-        - chrome_running.rc == 0
-
-    # ==========================================================
-    # 9. INSTALL OR UPGRADE IMMEDIATELY WHEN CHROME IS CLOSED
-    # ==========================================================
-
-    - name: Install or upgrade Google Chrome Stable
-      ansible.builtin.apt:
-        deb: "{{ chrome_deb_path }}"
-        state: present
-      register: chrome_install_result
+        mode: "0755"
       when:
         - chrome_action in ['INSTALL', 'UPGRADE']
         - chrome_running.rc != 0
 
-    # ==========================================================
-    # 10. REPAIR THE STANDARD CHROME COMMAND
-    # ==========================================================
+    - name: Extract Chrome ZIP on client
+      ansible.builtin.unarchive:
+        src: "{{ chrome_zip_path }}"
+        dest: "{{ chrome_install_dir }}"
+        remote_src: true
+      when:
+        - chrome_action in ['INSTALL', 'UPGRADE']
+        - chrome_running.rc != 0
 
-    - name: Configure google-chrome command
+    - name: Verify exact Chrome version
+      ansible.builtin.command:
+        argv:
+          - "{{ chrome_binary }}"
+          - --version
+      register: chrome_extracted_version
+      changed_when: false
+      when:
+        - chrome_action in ['INSTALL', 'UPGRADE']
+        - chrome_running.rc != 0
+
+    - name: Assert exact Chrome version
+      ansible.builtin.assert:
+        that:
+          - >-
+            (chrome_extracted_version.stdout |
+            regex_search('[0-9]+(\.[0-9]+){3}')) ==
+            required_chrome_version
+        fail_msg: >-
+          Expected {{ required_chrome_version }} but got
+          {{ chrome_extracted_version.stdout }}.
+        success_msg: "Exact Chrome version verified."
+      when:
+        - chrome_action in ['INSTALL', 'UPGRADE']
+        - chrome_running.rc != 0
+
+    # 9. Create the launcher only after successful verification
+    - name: Configure Google Chrome command
       ansible.builtin.file:
         src: "{{ chrome_binary }}"
         dest: "{{ chrome_link }}"
@@ -366,11 +263,7 @@
           and chrome_running.rc != 0
         )
 
-    # ==========================================================
-    # 11. CREATE APPLICATIONS MENU LAUNCHER
-    # ==========================================================
-
-    - name: Create Google Chrome desktop entry
+    - name: Create Chrome Applications menu entry
       ansible.builtin.copy:
         dest: /usr/share/applications/google-chrome-stable.desktop
         owner: root
@@ -381,7 +274,7 @@
           Version=1.0
           Name=Google Chrome
           Comment=Web Browser
-          Exec=/usr/bin/google-chrome-stable %U
+          Exec=/usr/bin/google-chrome %U
           Icon=google-chrome
           Terminal=false
           Type=Application
@@ -391,17 +284,109 @@
     - name: Refresh desktop application database
       ansible.builtin.command:
         cmd: update-desktop-database /usr/share/applications
-      register: desktop_database_result
       changed_when: false
       failed_when: false
 
-    # ==========================================================
-    # 12. VERIFY IMMEDIATE INSTALLATION
-    # ==========================================================
+    # 10. Defer deployment if Chrome is running
+    - name: Create deferred installation script
+      ansible.builtin.copy:
+        dest: "{{ pending_script }}"
+        owner: root
+        group: root
+        mode: "0750"
+        content: |
+          #!/bin/bash
+          set -euo pipefail
 
-    - name: Verify Google Chrome Stable version
+          REQUIRED="{{ required_chrome_version }}"
+          ZIP="{{ chrome_zip_path }}"
+          INSTALL_DIR="{{ chrome_install_dir }}"
+          BIN="{{ chrome_binary }}"
+          TIMER="{{ pending_timer }}"
+
+          # Never force-close Chrome.
+          if pgrep -x chrome >/dev/null 2>&1; then
+            echo "Chrome is still running; retry later."
+            exit 0
+          fi
+
+          mkdir -p "$INSTALL_DIR"
+          unzip -oq "$ZIP" -d "$INSTALL_DIR"
+
+          VERSION=$(
+            "$BIN" --version |
+            grep -oE '[0-9]+(\.[0-9]+){3}' |
+            head -n 1
+          )
+
+          if [ "$VERSION" != "$REQUIRED" ]; then
+            echo "Expected $REQUIRED, got $VERSION" >&2
+            exit 1
+          fi
+
+          ln -sfn "$BIN" /usr/bin/google-chrome
+
+          systemctl disable --now "$TIMER" >/dev/null 2>&1 || true
+          echo "Chrome for Testing $VERSION installed successfully."
+
+      when:
+        - chrome_action in ['INSTALL', 'UPGRADE']
+        - chrome_running.rc == 0
+
+    - name: Create deferred installation service
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/{{ pending_service }}"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Deploy Chrome for Testing after browser closure
+
+          [Service]
+          Type=oneshot
+          ExecStart={{ pending_script }}
+      when:
+        - chrome_action in ['INSTALL', 'UPGRADE']
+        - chrome_running.rc == 0
+
+    - name: Create deferred installation timer
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/{{ pending_timer }}"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Retry Chrome deployment after browser closure
+
+          [Timer]
+          OnBootSec=1min
+          OnUnitActiveSec=1min
+          Unit={{ pending_service }}
+
+          [Install]
+          WantedBy=timers.target
+      when:
+        - chrome_action in ['INSTALL', 'UPGRADE']
+        - chrome_running.rc == 0
+
+    - name: Enable deferred installation timer
+      ansible.builtin.systemd:
+        name: "{{ pending_timer }}"
+        daemon_reload: true
+        enabled: true
+        state: started
+      when:
+        - chrome_action in ['INSTALL', 'UPGRADE']
+        - chrome_running.rc == 0
+
+    # 11. Verify immediate deployment
+    - name: Verify deployed Chrome version
       ansible.builtin.command:
-        cmd: "{{ chrome_binary }} --version"
+        argv:
+          - "{{ chrome_binary }}"
+          - --version
       register: chrome_final_version
       changed_when: false
       when: >-
@@ -412,26 +397,22 @@
           and chrome_running.rc != 0
         )
 
-    # ==========================================================
-    # 13. FINAL STATUS
-    # ==========================================================
-
-    - name: Display final Chrome management status
+    # 12. Final status
+    - name: Display final deployment status
       ansible.builtin.debug:
         msg:
-          - "Detected version: {{ chrome_version_check.stdout | trim }}"
           - "Required version: {{ required_chrome_version }}"
           - "Action: {{ chrome_action }}"
           - "Bookmarks found: {{ bookmark_files.matched | default(0) }}"
           - >-
             {{
-              'Chrome is running. Installation/upgrade is scheduled for after it closes.'
+              'Deployment scheduled; waiting for Chrome to close.'
               if chrome_action in ['INSTALL', 'UPGRADE']
                  and chrome_running.rc == 0
               else
               (
-                'Chrome management completed: ' ~ chrome_final_version.stdout
-                if chrome_action in ['INSTALL', 'UPGRADE', 'SKIP']
-                else 'No action required.'
+                'Verified: ' ~ chrome_final_version.stdout
+                if chrome_final_version is defined
+                else 'No deployment performed.'
               )
             }}
