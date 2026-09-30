@@ -1,0 +1,36 @@
+
+---
+- name: Check Google Chrome Installation on Linux
+  hosts: old, new
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Check whether Google Chrome is installed
+      ansible.builtin.shell: |
+        if command -v google-chrome-stable >/dev/null 2>&1; then
+          google-chrome-stable --version
+        elif command -v google-chrome >/dev/null 2>&1; then
+          google-chrome --version
+        elif command -v google-chrome-beta >/dev/null 2>&1; then
+          google-chrome-beta --version
+        elif command -v google-chrome-unstable >/dev/null 2>&1; then
+          google-chrome-unstable --version
+        else
+          echo "NOT_INSTALLED"
+        fi
+      register: chrome_check
+      changed_when: false
+      failed_when: false
+
+    - name: Display Google Chrome installation status
+      ansible.builtin.debug:
+        msg: >-
+          Host: {{ inventory_hostname }} |
+          {% if chrome_check.stdout is defined and
+                chrome_check.stdout is search('Google Chrome') %}
+          Status: Installed |
+          Version: {{ chrome_check.stdout | trim }}
+          {% else %}
+          Status: Google Chrome is not installed
+          {% endif %}
