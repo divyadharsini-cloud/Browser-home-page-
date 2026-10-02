@@ -8,7 +8,7 @@
     required_chrome_version: "154.0.8037.57"
     required_package_version: "154.0.8037.57-1"
 
-    chrome_package_url: "http://172.17.9.58/chrome/google-chrome-stable_154.0.8037.57-1_amd64.deb"
+    chrome_package_url: "http://172.19.1.120/chrome/google-chrome-stable_154.0.8037.57-1_amd64.deb"
     chrome_package_path: "/var/cache/google-chrome-stable_154.0.8037.57-1_amd64.deb"
 
     chrome_stable_launcher: "/usr/bin/google-chrome-stable"
