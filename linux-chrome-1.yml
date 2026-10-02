@@ -1,6 +1,6 @@
 ---
 - name: Deploy standard Google Chrome 154.0.8037.57 on Linux client
-  hosts: DTNJPHGFPHY0165 , DTNJPHGFUN10018, DTNJPH2FWAR0194, DTNJPH2FWAR0158, DTNJPH2FWAR0144
+  hosts: old, new
   become: true
   gather_facts: true
 
