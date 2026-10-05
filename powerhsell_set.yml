@@ -1,23 +1,62 @@
 ---
-- name: Configure OpenSSH Default Shell
+- name: Bootstrap OpenSSH PowerShell Default Shell
   hosts: DTHNPH1FU010052
   gather_facts: no
+
+  vars:
+    ansible_connection: ssh
+    ansible_port: 22
+    ansible_user: theniroot
+    ansible_shell_type: cmd
+    ansible_shell_executable: cmd.exe
 
   tasks:
 
     - name: Configure PowerShell as OpenSSH DefaultShell
-      ansible.builtin.raw: |
-        New-ItemProperty -Path "HKLM:\SOFTWARE\OpenSSH" -Name "DefaultShell" -Value "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -PropertyType String -Force
+      ansible.builtin.raw: >-
+        reg.exe ADD "HKLM\SOFTWARE\OpenSSH"
+        /v DefaultShell
+        /t REG_SZ
+        /d "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+        /f
+
+      register: registry_result
+
+    - name: Display registry result
+      ansible.builtin.debug:
+        var: registry_result.stdout
 
     - name: Restart OpenSSH SSHD service
-      ansible.builtin.raw: |
-        Restart-Service sshd
+      ansible.builtin.raw: >-
+        powershell.exe -NoProfile -NonInteractive
+        -Command "Restart-Service sshd"
 
-    - name: Verify OpenSSH DefaultShell
+      register: sshd_restart
+      ignore_errors: yes
+
+    - name: Wait for SSHD to restart
+      ansible.builtin.pause:
+        seconds: 5
+
+
+- name: Verify OpenSSH PowerShell Default Shell
+  hosts: windows
+  gather_facts: no
+
+  vars:
+    ansible_connection: ssh
+    ansible_port: 22
+    ansible_user: theniroot
+    ansible_shell_type: powershell
+    ansible_shell_executable: powershell.exe
+
+  tasks:
+
+    - name: Verify PowerShell is the OpenSSH default shell
       ansible.builtin.raw: |
         (Get-ItemProperty -Path "HKLM:\SOFTWARE\OpenSSH" -Name "DefaultShell").DefaultShell
       register: default_shell
 
     - name: Display configured DefaultShell
       ansible.builtin.debug:
-        msg: "{{ default_shell.stdout }}"
+        msg: "OpenSSH DefaultShell = {{ default_shell.stdout | trim }}"
