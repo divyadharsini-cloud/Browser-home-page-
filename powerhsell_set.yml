@@ -1,6 +1,6 @@
 ---
 - name: Configure PowerShell as OpenSSH Default Shell
-  hosts: DPDYPH2FWAR0794
+  hosts: new
   gather_facts: false
 
   tasks:
