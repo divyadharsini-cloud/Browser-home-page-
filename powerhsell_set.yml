@@ -1,6 +1,6 @@
 ---
 - name: Configure OpenSSH Default Shell
-  hosts: DTHNPH1FWAR0037
+  hosts: DTHNPH1FU010052
   gather_facts: no
 
   tasks:
