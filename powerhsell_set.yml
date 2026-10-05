@@ -5,24 +5,36 @@
 
   tasks:
 
-    - name: Configure DefaultShell using PowerShell
-      ansible.builtin.raw: >-
-        powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command
-        "New-ItemProperty -Path 'HKLM:\SOFTWARE\OpenSSH' -Name 'DefaultShell'
-        -Value 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe'
-        -PropertyType String -Force"
+    - name: Create PowerShell configuration script
+      ansible.builtin.copy:
+        content: |
+          $ErrorActionPreference = "Stop"
 
-    - name: Restart SSHD using PowerShell
-      ansible.builtin.raw: >-
-        powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command
-        "Restart-Service sshd"
+          New-ItemProperty `
+            -Path "HKLM:\SOFTWARE\OpenSSH" `
+            -Name "DefaultShell" `
+            -Value "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" `
+            -PropertyType String `
+            -Force
 
-    - name: Verify DefaultShell using PowerShell
-      ansible.builtin.raw: >-
-        powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command
-        "(Get-ItemProperty -Path 'HKLM:\SOFTWARE\OpenSSH' -Name 'DefaultShell').DefaultShell"
-      register: openssh_shell
+          Restart-Service sshd
 
-    - name: Display configured shell
+          $shell = (Get-ItemProperty `
+            -Path "HKLM:\SOFTWARE\OpenSSH" `
+            -Name "DefaultShell").DefaultShell
+
+          Write-Output "DefaultShell: $shell"
+        dest: C:\Windows\Temp\configure-openssh.ps1
+
+    - name: Execute PowerShell configuration script
+      ansible.builtin.command: powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Windows\Temp\configure-openssh.ps1
+      register: openssh_result
+
+    - name: Display result
       ansible.builtin.debug:
-        msg: "{{ openssh_shell.stdout }}"
+        var: openssh_result.stdout
+
+    - name: Remove temporary script
+      ansible.builtin.file:
+        path: C:\Windows\Temp\configure-openssh.ps1
+        state: absent
