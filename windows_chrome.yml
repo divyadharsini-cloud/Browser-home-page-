@@ -1,5 +1,5 @@
 - name: Check and Upgrade Google Chrome on Windows
-  hosts: CASIA2, DTVLPH1FTEL0161, WINDOWS-CF30U07, TVLCLARUS2
+  hosts: DCBEPHGFMED0022
   gather_facts: false
 
   vars:
