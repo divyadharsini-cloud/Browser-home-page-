@@ -1,6 +1,6 @@
 ---
 - name: Check and Upgrade Google Chrome on Windows
-  hosts: DPDYPH1FGLA0619, ZPDYPH1FHIT0500, LPDY1FCPHIT0385, DPDYPHGFDGM0497, DPDYPH2FWAR0794, DPDYFH1FWAR0796
+  hosts: DPDYVCGGREG0355, DPDYVCTKREG0337, DPDYVCVVREG0388
   gather_facts: false
 
   vars:
@@ -11,7 +11,7 @@
     required_chrome_version: "154.0.8037.58"
 
     # Chrome installer
-    chrome_installer_url: "http://172.17.9.58/chrome/Chrome154.0.8037.58.msi"
+    chrome_installer_url: "http://172.21.1.3/chrome/Chrome154.0.8037.58.msi"
     chrome_installer_path: "C:\\Temp\\Chrome154.0.8037.58.msi"
 
     # Bookmark backup location
