@@ -11,7 +11,7 @@
     required_chrome_version: "154.0.8037.58"
 
     # Chrome installer
-    chrome_installer_url: "http://172.19.1.120/chrome/Chrome154.0.8037.58.msi"
+    chrome_installer_url: "http://172.17.9.58/chrome/Chrome154.0.8037.58.msi"
     chrome_installer_path: "C:\\Temp\\Chrome154.0.8037.58.msi"
 
     # Bookmark backup location
