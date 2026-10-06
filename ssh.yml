@@ -1,0 +1,31 @@
+---
+- name: Deploy AWX SSH public key
+  hosts: DTPTPH1FOPTADM1
+  become: true
+  gather_facts: false
+
+  vars:
+    awx_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMf/QWOf48rYAgL6pwazR5o/dIicLRyPel2WAxWlKnY4 mduroot@smdulb2fdcsdb10"
+
+  tasks:
+
+    - name: Create .ssh directory
+      ansible.builtin.file:
+        path: /home/theniroot/.ssh
+        state: directory
+        owner: tptroot
+        group: tptroot
+        mode: '0700'
+
+    - name: Add AWX public key
+      ansible.posix.authorized_key:
+        user: tptroot
+        key: "{{ awx_public_key }}"
+        state: present
+
+    - name: Set authorized_keys permissions
+      ansible.builtin.file:
+        path: /home/tptroot/.ssh/authorized_keys
+        owner: tptroot
+        group: tptroot
+        mode: '0600'
