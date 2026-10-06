@@ -6,7 +6,7 @@
   vars:
     ansible_connection: ssh
     ansible_port: 22
-    ansible_user: theniroot
+    ansible_user: tptroot
     ansible_shell_type: cmd
     ansible_shell_executable: cmd.exe
 
