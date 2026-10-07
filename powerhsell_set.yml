@@ -1,6 +1,6 @@
 ---
 - name: Bootstrap OpenSSH PowerShell Default Shell
-  hosts: new
+  hosts: DSLMVCMECHHMS
   gather_facts: no
 
   vars:
