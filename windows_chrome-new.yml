@@ -1,6 +1,6 @@
 ---
 - name: Check and Upgrade Google Chrome on Windows
-  hosts: LMDUAUROIT0008, LMDUPH4FAIT0052, DMDUVC20KAL0001, DMDUVC31VAD0002, DMDUVC62MUD0002
+  hosts: DMDUVC31VAD0001, DMDUVC74WAT0002, DMDUVC20KAL0002
   gather_facts: false
 
   vars:
