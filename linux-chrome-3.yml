@@ -1,6 +1,6 @@
 ---
 - name: Deploy standard Google Chrome 154.0.8037.57 on Linux client
-  hosts: old, new
+  hosts: DSLMPHGFIOL0001, DSLMPGFIOCOU061, DSLMPHGFIOLREF2 
   become: true
   gather_facts: true
 
@@ -8,7 +8,7 @@
     required_chrome_version: "154.0.8037.57"
     required_package_version: "154.0.8037.57-1"
 
-    chrome_package_url: "http://172.30.1.125/chrome/google-chrome-stable_154.0.8037.57-1_amd64.deb"
+    chrome_package_url: "http://172.32.5.22/chrome/google-chrome-stable_154.0.8037.57-1_amd64.deb"
     chrome_package_path: "/var/cache/google-chrome-stable_154.0.8037.57-1_amd64.deb"
 
     chrome_stable_launcher: "/usr/bin/google-chrome-stable"
