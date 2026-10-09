@@ -1,12 +1,12 @@
 ---
 - name: Bootstrap OpenSSH PowerShell Default Shell
-  hosts: DPDYPHGFOPT0612, DPDYFHGFMED0399, DPDYPHGFADI0616
+  hosts: DTHNPH1FOPT0113, DTHNPH1FSPL0041, DTHNPH1FU010050, DTHNPH1FU010052, DTHNPH1FWAR0037, DTHNPHGFLAB0018, DTHNPHGHOPT0025, DTHNPHGHU010017, DTHNVCGFCON0100, LTHNPHGFHIT0134
   gather_facts: no
 
   vars:
     ansible_connection: ssh
     ansible_port: 22
-    ansible_user: pdyroot
+    ansible_user: theniroot
     ansible_shell_type: cmd
     ansible_shell_executable: cmd.exe
 
@@ -46,7 +46,7 @@
   vars:
     ansible_connection: ssh
     ansible_port: 22
-    ansible_user: pdyroot
+    ansible_user: theniroot
     ansible_shell_type: powershell
     ansible_shell_executable: powershell.exe
 
