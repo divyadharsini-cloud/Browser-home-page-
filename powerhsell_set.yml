@@ -1,6 +1,6 @@
 ---
 - name: Bootstrap OpenSSH PowerShell Default Shell
-  hosts: DTUTPHGFMED0001, DTUTPHGFOPT0003
+  hosts: DKVPFHGFMRD0013, DKVPPH1FMED0033, DKVPPH1FOPT0032, DKVPPH1FSTA0028
   gather_facts: no
 
   vars:
