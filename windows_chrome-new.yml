@@ -1,6 +1,6 @@
 ---
 - name: Check and Upgrade Google Chrome on Windows
-  hosts: DTHNMEDICAL2026
+  hosts: DPDYPHGFADI0616, DPDYPHGFMED0565, DPDYPHGFOPT0612, DPDYVCSTCON0389, DPDYVCUPCON0344, DPDYPH1FPRJ0621, LPDY1FCPHIT0379
   gather_facts: false
 
   vars:
