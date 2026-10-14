@@ -1,4 +1,3 @@
-```yaml
 ---
 - name: Enforce Chrome Policies and Control Updates
   hosts: ansibletesting
