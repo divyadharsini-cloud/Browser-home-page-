@@ -83,4 +83,4 @@
           and startup page. Password saving is disabled, cache clearing on
           exit is enabled, and Chrome Stable is held against APT upgrades
           if installed.
-```
+
