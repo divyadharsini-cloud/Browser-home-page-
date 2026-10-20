@@ -1,0 +1,40 @@
+
+---
+- name: Disable Firefox launcher on Linux
+  hosts: ansibletesting
+  become: true
+  gather_facts: false
+  serial: 10
+
+  tasks:
+    - name: Disable standard and custom Firefox launchers
+      ansible.builtin.shell: |
+        set -eu
+        found=0
+
+        for f in /usr/bin/firefox /opt/firefox*/firefox/firefox; do
+          [ -e "$f" ] || [ -L "$f" ] || continue
+          found=1
+
+          if [ -e "${f}.awx-disabled" ] || [ -L "${f}.awx-disabled" ]; then
+            continue
+          fi
+
+          mv -- "$f" "${f}.awx-disabled"
+
+          cat > "$f" <<'EOF'
+        #!/bin/sh
+        echo "Firefox is disabled by the administrator."
+        exit 1
+        EOF
+          chmod 755 "$f"
+        done
+
+        if [ "$found" -eq 0 ]; then
+          echo "No supported Firefox launcher found."
+          exit 1
+        fi
+      args:
+        executable: /bin/bash
+      register: firefox_disable
+      changed_when: firefox_disable.rc == 0
