@@ -1,7 +1,7 @@
 
 ---
 - name: Disable Firefox launcher on Linux
-  hosts: ansibletesting
+  hosts: DTHNVCGFCON0106
   become: true
   gather_facts: false
   serial: 10
