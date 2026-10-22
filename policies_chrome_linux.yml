@@ -1,6 +1,6 @@
 ---
 - name: Enforce Chrome Policies and Control Updates
-  hosts: old, new
+  hosts: DMDUVC30USI0002, DMDUVC30USI0001
   become: yes
   gather_facts: no
 
@@ -37,12 +37,12 @@
         mode: '0644'
         content: |
           {
-            "HomepageLocation": "https://eyenotes.aravind.org/eyenotes",
+            "HomepageLocation": "https://eyenotesweb.aravind.org/",
             "HomepageIsNewTabPage": false,
             "ShowHomeButton": true,
             "RestoreOnStartup": 4,
             "RestoreOnStartupURLs": [
-              "https://eyenotes.aravind.org/eyenotes"
+              "https://eyenotesweb.aravind.org/"
             ],
             "PasswordManagerEnabled": false,
             "ClearBrowsingDataOnExitList": [
