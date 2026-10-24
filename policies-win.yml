@@ -1,6 +1,6 @@
 
 ---
-- name: Enforce Chrome and Firefox Policies on Windows
+- name: Configure Chrome Homepage on Windows
   hosts: DTPTFHGFMED0002, DTPTPH1FOPTACC1, DTPTPH1FOPTACC2, DTPTPH1FOPTADM1, TPTPH1FOPTS004, DTPTPH2FCOROCT1, DTPTPH2MED001, DTPTPHGFMED0002, WINDOWS-JNGF6FV, DTPTPH5FCLSTV03, DTPTPH5FCLAS001
   gather_facts: false
 
@@ -9,9 +9,7 @@
 
   tasks:
 
-    # ---------------- CHROME ----------------
-
-    - name: Configure Chrome policies
+    - name: Configure Chrome homepage policies
       ansible.windows.win_regedit:
         path: HKLM:\SOFTWARE\Policies\Google\Chrome
         name: "{{ item.name }}"
@@ -35,10 +33,6 @@
           data: 4
           type: dword
 
-        - name: PasswordManagerEnabled
-          data: 0
-          type: dword
-
     - name: Configure Chrome startup URL
       ansible.windows.win_regedit:
         path: HKLM:\SOFTWARE\Policies\Google\Chrome\RestoreOnStartupURLs
@@ -47,72 +41,12 @@
         type: string
         state: present
 
-    - name: Configure Chrome cache clearing on exit
-      ansible.windows.win_regedit:
-        path: HKLM:\SOFTWARE\Policies\Google\Chrome\ClearBrowsingDataOnExitList
-        name: "1"
-        data: cached_images_and_files
-        type: string
-        state: present
-
-    # ---------------- FIREFOX ----------------
-
-    - name: Configure Firefox homepage URL
-      ansible.windows.win_regedit:
-        path: HKLM:\SOFTWARE\Policies\Mozilla\Firefox\Homepage
-        name: URL
-        data: "{{ homepage_url }}"
-        type: string
-        state: present
-
-    - name: Lock Firefox homepage
-      ansible.windows.win_regedit:
-        path: HKLM:\SOFTWARE\Policies\Mozilla\Firefox\Homepage
-        name: Locked
-        data: 1
-        type: dword
-        state: present
-
-    - name: Configure Firefox startup page
-      ansible.windows.win_regedit:
-        path: HKLM:\SOFTWARE\Policies\Mozilla\Firefox\Homepage
-        name: StartPage
-        data: homepage-locked
-        type: string
-        state: present
-
-    - name: Disable Firefox password manager
-      ansible.windows.win_regedit:
-        path: HKLM:\SOFTWARE\Policies\Mozilla\Firefox
-        name: PasswordManagerEnabled
-        data: 0
-        type: dword
-        state: present
-
-    - name: Enable Firefox cache clearing on shutdown
-      ansible.windows.win_regedit:
-        path: HKLM:\SOFTWARE\Policies\Mozilla\Firefox\ClearOnShutdown
-        name: Cache
-        data: 1
-        type: dword
-        state: present
-
-    # ---------------- VERIFICATION ----------------
-
     - name: Verify Chrome homepage policy
       ansible.windows.win_reg_stat:
         path: HKLM:\SOFTWARE\Policies\Google\Chrome
         name: HomepageLocation
       register: chrome_homepage
 
-    - name: Verify Firefox homepage policy
-      ansible.windows.win_reg_stat:
-        path: HKLM:\SOFTWARE\Policies\Mozilla\Firefox\Homepage
-        name: URL
-      register: firefox_homepage
-
-    - name: Report deployment status
+    - name: Report Chrome homepage status
       ansible.builtin.debug:
-        msg:
-          - "Chrome homepage: {{ chrome_homepage.value | default('Not found') }}"
-          - "Firefox homepage: {{ firefox_homepage.value | default('Not found') }}"
+        msg: "Chrome homepage configured as: {{ chrome_homepage.value | default('Not found') }}"
