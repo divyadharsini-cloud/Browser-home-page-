@@ -2,14 +2,13 @@
 ---
 - name: Enforce Chrome and Firefox Policies on Windows
   hosts: DTNJFHGFMED0010, DTNJPHGFADM0037, DTNJPHGFMED0112, DTNJPHGFMED0115, DTNJPHGFOPT0105, DTNJPHGFOPT0110, LTNJPH1FCMP0201, LTNJPH1FCMP0202, MTNJPHGFASOCT01, MTNJPHGFBSCAN03
-  become: true
-  become_method: runas
   gather_facts: false
 
   vars:
     homepage_url: "https://eyenotesweb.aravind.org/"
 
   tasks:
+
     # ---------------- CHROME ----------------
 
     - name: Configure Chrome policies
@@ -112,9 +111,8 @@
         name: URL
       register: firefox_homepage
 
-    - name: Report browser policy deployment
+    - name: Report deployment status
       ansible.builtin.debug:
         msg:
           - "Chrome homepage: {{ chrome_homepage.value | default('Not found') }}"
           - "Firefox homepage: {{ firefox_homepage.value | default('Not found') }}"
-          - "Verify Chrome at chrome://policy and Firefox at about:policies."
