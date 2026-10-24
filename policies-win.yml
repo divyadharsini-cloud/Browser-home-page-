@@ -1,14 +1,18 @@
 
 ---
-- name: Enforce Chrome Policies on Windows
-  hosts: DMDUVC30USI0002, DMDUVC30USI0001
-  become: yes
+- name: Enforce Chrome and Firefox Policies on Windows
+  hosts: DTNJFHGFMED0010, DTNJPHGFADM0037, DTNJPHGFMED0112, DTNJPHGFMED0115, DTNJPHGFOPT0105, DTNJPHGFOPT0110, LTNJPH1FCMP0201, LTNJPH1FCMP0202, MTNJPHGFASOCT01, MTNJPHGFBSCAN03
+  become: true
   become_method: runas
-  gather_facts: no
+  gather_facts: false
+
+  vars:
+    homepage_url: "https://eyenotesweb.aravind.org/"
 
   tasks:
+    # ---------------- CHROME ----------------
 
-    - name: Configure Chrome Enterprise policies
+    - name: Configure Chrome policies
       ansible.windows.win_regedit:
         path: HKLM:\SOFTWARE\Policies\Google\Chrome
         name: "{{ item.name }}"
@@ -17,7 +21,7 @@
         state: present
       loop:
         - name: HomepageLocation
-          data: "https://eyenotesweb.aravind.org/"
+          data: "{{ homepage_url }}"
           type: string
 
         - name: HomepageIsNewTabPage
@@ -40,27 +44,77 @@
       ansible.windows.win_regedit:
         path: HKLM:\SOFTWARE\Policies\Google\Chrome\RestoreOnStartupURLs
         name: "1"
-        data: "https://eyenotesweb.aravind.org/"
+        data: "{{ homepage_url }}"
         type: string
         state: present
 
-    - name: Configure cache clearing on exit
+    - name: Configure Chrome cache clearing on exit
       ansible.windows.win_regedit:
-        path: HKLM:\SOFTWARE\Policies\Google\Chrome
-        name: ClearBrowsingDataOnExitList
-        data:
-          - cached_images_and_files
-        type: multistring
+        path: HKLM:\SOFTWARE\Policies\Google\Chrome\ClearBrowsingDataOnExitList
+        name: "1"
+        data: cached_images_and_files
+        type: string
         state: present
+
+    # ---------------- FIREFOX ----------------
+
+    - name: Configure Firefox homepage URL
+      ansible.windows.win_regedit:
+        path: HKLM:\SOFTWARE\Policies\Mozilla\Firefox\Homepage
+        name: URL
+        data: "{{ homepage_url }}"
+        type: string
+        state: present
+
+    - name: Lock Firefox homepage
+      ansible.windows.win_regedit:
+        path: HKLM:\SOFTWARE\Policies\Mozilla\Firefox\Homepage
+        name: Locked
+        data: 1
+        type: dword
+        state: present
+
+    - name: Configure Firefox startup page
+      ansible.windows.win_regedit:
+        path: HKLM:\SOFTWARE\Policies\Mozilla\Firefox\Homepage
+        name: StartPage
+        data: homepage-locked
+        type: string
+        state: present
+
+    - name: Disable Firefox password manager
+      ansible.windows.win_regedit:
+        path: HKLM:\SOFTWARE\Policies\Mozilla\Firefox
+        name: PasswordManagerEnabled
+        data: 0
+        type: dword
+        state: present
+
+    - name: Enable Firefox cache clearing on shutdown
+      ansible.windows.win_regedit:
+        path: HKLM:\SOFTWARE\Policies\Mozilla\Firefox\ClearOnShutdown
+        name: Cache
+        data: 1
+        type: dword
+        state: present
+
+    # ---------------- VERIFICATION ----------------
 
     - name: Verify Chrome homepage policy
       ansible.windows.win_reg_stat:
         path: HKLM:\SOFTWARE\Policies\Google\Chrome
         name: HomepageLocation
-      register: homepage_policy
+      register: chrome_homepage
 
-    - name: Report deployment status
+    - name: Verify Firefox homepage policy
+      ansible.windows.win_reg_stat:
+        path: HKLM:\SOFTWARE\Policies\Mozilla\Firefox\Homepage
+        name: URL
+      register: firefox_homepage
+
+    - name: Report browser policy deployment
       ansible.builtin.debug:
-        msg: >-
-          Chrome homepage policy value:
-          {{ homepage_policy.value | default('Not found') }}
+        msg:
+          - "Chrome homepage: {{ chrome_homepage.value | default('Not found') }}"
+          - "Firefox homepage: {{ firefox_homepage.value | default('Not found') }}"
+          - "Verify Chrome at chrome://policy and Firefox at about:policies."
