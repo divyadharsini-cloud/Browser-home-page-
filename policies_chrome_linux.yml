@@ -1,10 +1,15 @@
+
 ---
-- name: Enforce Chrome Policies and Control Updates
-  hosts: DMDUVC30USI0002, DMDUVC30USI0001
-  become: yes
-  gather_facts: no
+- name: Enforce Chrome and Firefox Policies on Linux
+  hosts: old, new
+  become: true
+  gather_facts: false
+
+  vars:
+    homepage_url: "https://eyenotesweb.aravind.org/"
 
   tasks:
+    # ---------------- CHROME ----------------
 
     - name: Ensure Chrome managed policy directory exists
       ansible.builtin.file:
@@ -17,19 +22,19 @@
     - name: Check existing Chrome policy file
       ansible.builtin.stat:
         path: /etc/opt/chrome/policies/managed/aravind-policies.json
-      register: chrome_policy_file
+      register: chrome_policy_stat
 
     - name: Back up existing Chrome policy file
       ansible.builtin.copy:
         src: /etc/opt/chrome/policies/managed/aravind-policies.json
         dest: /etc/opt/chrome/policies/managed/aravind-policies.json.bak
-        remote_src: yes
+        remote_src: true
         owner: root
         group: root
         mode: '0644'
-      when: chrome_policy_file.stat.exists
+      when: chrome_policy_stat.stat.exists
 
-    - name: Deploy Chrome Enterprise policies
+    - name: Deploy Chrome policies
       ansible.builtin.copy:
         dest: /etc/opt/chrome/policies/managed/aravind-policies.json
         owner: root
@@ -37,12 +42,12 @@
         mode: '0644'
         content: |
           {
-            "HomepageLocation": "https://eyenotesweb.aravind.org/",
+            "HomepageLocation": "{{ homepage_url }}",
             "HomepageIsNewTabPage": false,
             "ShowHomeButton": true,
             "RestoreOnStartup": 4,
             "RestoreOnStartupURLs": [
-              "https://eyenotesweb.aravind.org/"
+              "{{ homepage_url }}"
             ],
             "PasswordManagerEnabled": false,
             "ClearBrowsingDataOnExitList": [
@@ -59,7 +64,7 @@
           - /etc/opt/chrome/policies/managed/aravind-policies.json
       changed_when: false
 
-    - name: Check Chrome Stable installation status
+    - name: Check Chrome Stable package status
       ansible.builtin.command:
         argv:
           - dpkg-query
@@ -76,11 +81,63 @@
         selection: hold
       when: "'install ok installed' in chrome_package_status.stdout"
 
-    - name: Report deployment status
+    # ---------------- FIREFOX ----------------
+
+    - name: Ensure Firefox policy directory exists
+      ansible.builtin.file:
+        path: /etc/firefox/policies
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Check existing Firefox policy file
+      ansible.builtin.stat:
+        path: /etc/firefox/policies/policies.json
+      register: firefox_policy_stat
+
+    - name: Back up existing Firefox policy file
+      ansible.builtin.copy:
+        src: /etc/firefox/policies/policies.json
+        dest: /etc/firefox/policies/policies.json.bak
+        remote_src: true
+        owner: root
+        group: root
+        mode: '0644'
+      when: firefox_policy_stat.stat.exists
+
+    - name: Deploy Firefox policies
+      ansible.builtin.copy:
+        dest: /etc/firefox/policies/policies.json
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          {
+            "policies": {
+              "Homepage": {
+                "URL": "{{ homepage_url }}",
+                "Locked": true,
+                "StartPage": "homepage-locked"
+              },
+              "PasswordManagerEnabled": false,
+              "ClearOnShutdown": {
+                "Cache": true
+              }
+            }
+          }
+
+    - name: Validate Firefox policy JSON
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -m
+          - json.tool
+          - /etc/firefox/policies/policies.json
+      changed_when: false
+
+    - name: Report browser policy deployment
       ansible.builtin.debug:
         msg: >-
-          Chrome policies deployed. EyeNotes is configured as the homepage
-          and startup page. Password saving is disabled, cache clearing on
-          exit is enabled, and Chrome Stable is held against APT upgrades
-          if installed.
-
+          Chrome and Firefox policy files have been deployed.
+          Verify Chrome at chrome://policy and Firefox at about:policies.
