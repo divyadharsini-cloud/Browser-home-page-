@@ -1,7 +1,7 @@
 
 ---
 - name: Enforce Chrome and Firefox Policies on Linux
-  hosts: old, new
+  hosts: DPDYCC1FDRE0786
   become: true
   gather_facts: false
 
